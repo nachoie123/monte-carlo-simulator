@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monte Carlo por dentro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Kalam:wght@300;400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ADN Xiaohei: blanco puro, línea negra temblona, naranja = camino/flujo, rojo = aviso/resultado, azul = nota del sistema.
+   NO hay cajas de colores, sombras, degradados ni tarjetas redondeadas: el dibujo manda y la ficha es una hoja de libreta. */
+:root{--ink:#141414;--paper:#fff;--or:#ee7a12;--red:#e0282e;--blue:#2a6fdb;--mute:#77756f;--rule:#d9d7d0}
+*{box-sizing:border-box}
+html{background:#fff}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.55 Kalam,"Comic Sans MS",cursive}
+.wrap{max-width:1180px;margin:0 auto;padding:48px 16px 96px}
+
+/* portada */
+header{display:grid;grid-template-columns:1fr 1.15fr;gap:24px;align-items:center}
+header h1{font:700 64px/0.95 Caveat,cursive;margin:0}
+header h1 em{font-style:normal;color:var(--or)}
+header p{margin:12px 0 0;max-width:520px}
+header .meta{font:12.5px "JetBrains Mono",monospace;color:var(--mute);margin-top:14px}
+header svg{width:100%;height:auto}
+ol.indice{columns:2;column-gap:40px;margin:36px 0 0;padding:0;list-style:none;counter-reset:l;border-top:1.5px solid var(--ink)}
+ol.indice li{counter-increment:l;break-inside:avoid;padding:7px 0;border-bottom:1px dashed var(--rule);font:600 21px/1.2 Caveat,cursive}
+ol.indice li::before{content:counter(l,decimal-leading-zero);color:var(--or);margin-right:10px;font-family:"JetBrains Mono",monospace;font-size:13px}
+ol.indice a{color:var(--ink);text-decoration:none}
+ol.indice small{display:block;margin-left:34px;font:14px/1.3 Kalam,cursive;color:var(--mute)}
+
+/* lámina */
+section.lamina{margin:96px 0 0}
+.lamina .num{font:13px "JetBrains Mono",monospace;color:var(--or);letter-spacing:.08em}
+.lamina h2{font:700 46px/1 Caveat,cursive;margin:2px 0 6px}
+.lamina .idea{font-size:19px;max-width:780px;margin:0}
+svg.dib{width:100%;height:auto;display:block;margin:10px 0 0}
+
+/* ficha técnica: hoja de libreta debajo del dibujo */
+.ficha{display:grid;grid-template-columns:260px 1fr;gap:0 32px;border-top:1.5px solid var(--ink);padding-top:14px;margin-top:6px}
+.ficha h3{font:700 24px/1.1 Caveat,cursive;margin:0 0 6px}
+.ficha .llano p{margin:0 0 10px;font-size:16px}
+.ficha table{width:100%;border-collapse:collapse;font-size:15.5px}
+.ficha th{font:600 12px "JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);text-align:left;padding:0 10px 6px 0;border-bottom:1px solid var(--rule)}
+.ficha td{vertical-align:top;padding:8px 10px 8px 0;border-bottom:1px dashed var(--rule)}
+.ficha td:first-child{font:700 20px/1.15 Caveat,cursive;white-space:nowrap}
+.ficha .dato{margin:12px 0 0;padding:8px 0 0;font-size:15.5px;border-top:1px dashed var(--rule)}
+.ficha .dato b{color:var(--red);font-weight:400}
+code,.ref{font:12.5px/1.4 "JetBrains Mono",monospace}
+.ref{color:var(--blue);white-space:nowrap}
+code{background:#f4f3ef;padding:1px 5px;border-radius:3px;overflow-wrap:anywhere}
+.ficha>div,header>div{min-width:0}
+.cierre{margin:110px 0 0;font:700 40px/1.15 Caveat,cursive;color:var(--red);text-align:center}
+
+/* trazo a mano dentro de los SVG */
+.sk{fill:none;stroke:var(--ink);stroke-width:2.3;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;filter:url(#wob)}
+.sk.w{fill:#fff}                     /* objeto opaco: tapa lo que hay detrás */
+.sk.or{stroke:var(--or)} .sk.red{stroke:var(--red)} .sk.blue{stroke:var(--blue)}
+.sk.fino{stroke-width:1.4} .sk.gordo{stroke-width:3.2} .sk.dash{stroke-dasharray:7 8}
+.tinta{fill:var(--ink);filter:url(#wob)}
+.brazo{fill:none;stroke:var(--ink);stroke-width:2.6;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;filter:url(#wob)}
+svg text{font:600 25px Caveat,cursive;fill:var(--ink)}
+svg text.g{font-size:32px}            /* rótulo grande */
+svg text.p{font-size:20px}            /* rótulo pequeño */
+svg text.code{font:13px "JetBrains Mono",monospace;fill:#444}
+svg text.or{fill:var(--or)} svg text.red{fill:var(--red)} svg text.blue{fill:var(--blue)} svg text.mute{fill:var(--mute)}
+
+@media (max-width:760px){
+  header{grid-template-columns:1fr} header h1{font-size:46px}
+  ol.indice{columns:1}
+  .lamina h2{font-size:36px}
+  .ficha{grid-template-columns:1fr}
+  .ficha table,.ficha tbody,.ficha tr,.ficha td{display:block;width:100%}
+  .ficha thead{display:none}
+  .ficha td{border:0;padding:2px 0} .ficha tr{border-bottom:1px dashed var(--rule);padding:8px 0}
+  .ref{white-space:normal;word-break:break-all}
+}
+/* modo captura: explicacion.html#solo-l3 enseña solo esa lámina (lo usa shot.sh) */
+body.solo header,body.solo .cierre,body.solo ol.indice,body.solo section.lamina{display:none}
+body.solo section.lamina.ver{display:block;margin-top:0}
+</style>
+</head>
+<body>
+<script>
+(function(){var m=location.hash.match(/^#solo-(.+)$/);if(!m)return;document.body.classList.add('solo');
+addEventListener('DOMContentLoaded',function(){var s=document.getElementById(m[1]);if(s)s.classList.add('ver')})})();
+</script>
+
+<!-- ═══════════ BIBLIOTECA DE DIBUJOS ═══════════
+  Todo se usa con <use href="#id" x=".." y=".."/> o dentro de <g transform="translate(x y) scale(s) rotate(r)">.
+  Son PIEZAS para componer una escena, no escenas hechas: cada lámina inventa su propia metáfora
+  y dibuja a mano lo que falte (paths propios con class="sk"). Medidas en el comentario de cada una. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+  <filter id="wob" filterUnits="userSpaceOnUse" x="-300" y="-300" width="1800" height="1300"><!-- espacio fijo: con % las rectas desaparecen -->
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4"/>
+    <feDisplacementMap in="SourceGraphic" scale="3"/>
+  </filter>
+  <marker id="ah" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M1 1.5 L10.5 6 L1 10.5" fill="none" stroke="#141414" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="ah-or" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M1 1.5 L10.5 6 L1 10.5" fill="none" stroke="#ee7a12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="ah-red" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M1 1.5 L10.5 6 L1 10.5" fill="none" stroke="#e0282e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="ah-blue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M1 1.5 L10.5 6 L1 10.5" fill="none" stroke="#2a6fdb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+
+  <!-- ── EL BICHITO (Xiaohei). Origen = entre los pies, en el suelo. Serio, inexpresivo, nunca mono.
+       Los BRAZOS los dibujas tú en cada escena con class="brazo" (de hombro a objeto) + <use href="#mano"> al final.
+       Hombros aprox: #xh (-24,-50)/(28,-52) · #xh-alto (-20,-70)/(23,-72) · #xh-bajo (-29,-30)/(31,-30) -->
+  <g id="xh"><!-- judía, alto ≈ 100 -->
+    <path class="tinta" d="M-24 -22 C-31 -52 -24 -89 0 -93 C25 -96 33 -63 29 -36 C27 -24 18 -18 5 -17 C-9 -16 -20 -14 -24 -22Z"/>
+    <path class="tinta" d="M-3 -92 L1 -101 L6 -93Z"/>
+    <circle cx="-7" cy="-66" r="3.6" fill="#fff"/><circle cx="9" cy="-67" r="3.6" fill="#fff"/>
+    <path class="sk fino" d="M-9 -18 L-11 0 L-17 0 M8 -18 L10 0 L16 0"/>
+  </g>
+  <g id="xh-alto"><!-- columna, alto ≈ 125 -->
+    <path class="tinta" d="M-21 -18 C-26 -60 -22 -118 0 -122 C22 -124 27 -80 24 -40 C23 -24 16 -18 4 -17 C-8 -16 -18 -13 -21 -18Z"/>
+    <circle cx="-6" cy="-96" r="3.4" fill="#fff"/><circle cx="8" cy="-97" r="3.4" fill="#fff"/>
+    <path class="sk fino" d="M-8 -18 L-10 0 L-16 0 M7 -18 L9 0 L15 0"/>
+  </g>
+  <g id="xh-bajo"><!-- rechoncho, alto ≈ 62 (sentado en taburete, dentro de una máquina, asomando de un agujero) -->
+    <path class="tinta" d="M-29 -14 C-34 -38 -22 -62 2 -62 C26 -62 36 -40 31 -18 C28 -10 16 -9 2 -9 C-14 -9 -26 -7 -29 -14Z"/>
+    <circle cx="-7" cy="-42" r="3.4" fill="#fff"/><circle cx="10" cy="-43" r="3.4" fill="#fff"/>
+    <path class="sk fino" d="M-10 -10 L-12 0 L-18 0 M10 -10 L12 0 L18 0"/>
+  </g>
+  <g id="xh-chato"><!-- aplastado bajo un peso, ancho ≈ 150 con brazos -->
+    <path class="tinta" d="M-40 -6 C-44 -22 -20 -30 2 -30 C26 -30 46 -22 42 -8 C40 0 20 2 0 2 C-20 2 -38 2 -40 -6Z"/>
+    <circle cx="-8" cy="-16" r="3.4" fill="#fff"/><circle cx="10" cy="-16" r="3.4" fill="#fff"/>
+    <path class="brazo" d="M-40 -10 L-70 -4 M-70 -4 l-6 -6 M-70 -4 l-7 3 M42 -10 L72 -4 M72 -4 l6 -6 M72 -4 l7 3 M-22 2 L-34 14 M24 2 L36 14"/>
+  </g>
+  <g id="mano"><!-- manita de 3 dedos al final de un brazo; origen = muñeca -->
+    <path class="brazo" d="M0 0 l7 -5 M0 0 l9 0 M0 0 l6 6"/>
+  </g>
+  <g id="sudor"><!-- marcas de esfuerzo/temblor junto a algo que cuesta o falla -->
+    <path class="sk fino" d="M0 0 c-4 -8 4 -12 0 -20 M10 2 c-4 -8 4 -12 0 -20"/>
+  </g>
+  <g id="chispa"><!-- brillo/acierto: 3 rayitas -->
+    <path class="sk fino" d="M0 -6 l0 -12 M10 0 l10 -8 M-10 0 l-10 -8"/>
+  </g>
+  <g id="alarma"><!-- rayitas rojas de "¡ojo!" a ambos lados; origen = centro de lo que avisa -->
+    <path class="sk red fino" d="M-34 -8 l-14 -10 M-34 4 l-16 0 M34 -8 l14 -10 M34 4 l16 0"/>
+  </g>
+
+  <!-- ── OBJETOS (origen arriba-izquierda salvo que se diga) -->
+  <g id="caja"><!-- caja de cartón 3D, 90×70; rótulo centrado en (35,50) -->
+    <path class="sk w" d="M0 20 H70 V70 H0Z"/><path class="sk w" d="M0 20 L18 4 H88 L70 20Z"/><path class="sk w" d="M70 20 L88 4 V54 L70 70Z"/>
+  </g>
+  <g id="hoja"><!-- folio con esquina doblada, 44×56 -->
+    <path class="sk w" d="M0 0 H32 L44 12 V56 H0Z"/><path class="sk fino" d="M32 0 V12 H44 M8 22 H36 M8 30 H36 M8 38 H28 M8 46 H34"/>
+  </g>
+  <g id="pila"><!-- montón de folios, 70×50 -->
+    <path class="sk w" d="M4 14 L62 6 L68 44 L10 52Z"/><path class="sk w" d="M0 8 L58 2 L64 40 L6 46Z"/><path class="sk fino" d="M12 16 L48 12 M13 24 L52 20 M14 32 L40 29"/>
+  </g>
+  <g id="tarjeta"><!-- ficha con foto y líneas, 130×64; posts, filas, resultados -->
+    <path class="sk w" d="M0 0 H130 V64 H0Z"/><path class="sk fino" d="M10 14 H44 V46 H10Z M12 44 L24 30 L32 38 L36 34 L44 44"/><circle class="sk fino" cx="36" cy="22" r="3"/>
+    <path class="sk fino" d="M54 18 H116 M54 30 H110 M54 42 H96"/>
+  </g>
+  <g id="video"><!-- ficha de vídeo con play, 130×64 -->
+    <path class="sk w" d="M0 0 H130 V64 H0Z"/><circle class="sk fino" cx="28" cy="32" r="14"/><path class="sk red fino" d="M23 24 L35 32 L23 40Z"/>
+    <path class="sk fino" d="M54 22 H116 M54 34 H108 M54 46 H92"/>
+  </g>
+  <g id="sobre"><!-- sobre cerrado, 80×52 -->
+    <path class="sk w" d="M0 0 H80 V52 H0Z"/><path class="sk fino" d="M0 0 L40 30 L80 0"/>
+  </g>
+  <g id="cartel"><!-- cartel en palo; origen = pie del palo; texto centrado en (0,-82) -->
+    <path class="sk" d="M0 0 V-62"/><path class="sk w" d="M-50 -110 H50 V-60 H-50Z"/>
+  </g>
+  <g id="pancarta"><!-- cartelito que sostiene el bichito; origen = mano; texto en (0,-44) -->
+    <path class="sk" d="M0 0 V-24"/><path class="sk w" d="M-30 -70 H30 V-24 H-30Z"/>
+  </g>
+  <g id="agujero"><!-- agujero en el suelo; origen = centro; 170×46 -->
+    <ellipse class="sk w" cx="0" cy="0" rx="84" ry="22"/><ellipse class="tinta" cx="0" cy="4" rx="68" ry="14"/>
+  </g>
+  <g id="grieta"><!-- grieta; origen = inicio -->
+    <path class="sk" d="M0 0 l14 8 l-6 10 l16 6 l-4 12 l14 4"/>
+  </g>
+  <g id="isla-izq"><!-- acantilado; borde del precipicio a la derecha en (300,0); la roca baja hasta y≈150 -->
+    <path fill="#fff" d="M4 14 C60 28 240 26 298 4 L288 40 L300 84 L286 150 L8 150 L14 80Z"/>
+    <path class="sk" d="M4 14 L14 80 L6 150 M298 4 L288 40 L300 84 L286 150"/>
+    <path class="sk fino" d="M250 50 l8 34 M270 34 l6 40 M232 92 l6 44 M190 70 l4 50 M262 110 l4 30"/>
+    <path class="sk w" d="M0 10 C20 -12 250 -16 300 0 C296 18 240 26 140 26 C60 26 4 22 0 10Z"/>
+    <path class="sk fino" d="M60 4 l4 -8 M64 4 l-2 -9 M150 -2 l3 -7 M200 8 h10"/>
+  </g>
+  <g id="isla-der"><!-- acantilado; borde del precipicio a la izquierda en (0,0) -->
+    <path fill="#fff" d="M2 4 C60 26 240 28 296 14 L286 80 L294 150 L14 150 L0 84 L12 40Z"/>
+    <path class="sk" d="M2 4 L12 40 L0 84 L14 150 M296 14 L286 80 L294 150"/>
+    <path class="sk fino" d="M50 50 l-8 34 M30 34 l-6 40 M68 92 l-6 44 M110 70 l-4 50 M38 110 l-4 30"/>
+    <path class="sk w" d="M0 0 C50 -16 280 -12 300 10 C296 22 240 26 160 26 C60 26 4 18 0 0Z"/>
+    <path class="sk fino" d="M240 4 l4 -8 M244 4 l-2 -9 M150 -2 l3 -7 M90 8 h10"/>
+  </g>
+  <g id="suelo"><!-- línea de suelo de 240; origen = extremo izquierdo -->
+    <path class="sk fino" d="M0 0 C60 2 180 -2 240 1 M20 7 l12 0 M90 6 l18 0 M170 7 l10 0"/>
+  </g>
+  <g id="embudo"><!-- embudo; origen = centro de la boca; 120×110 -->
+    <ellipse class="sk w" cx="0" cy="0" rx="60" ry="12"/><path class="sk w" d="M-60 0 L-10 70 V108 H10 V70 L60 0"/><path class="sk fino" d="M-60 0 C-40 10 40 10 60 0"/>
+  </g>
+  <g id="cinta"><!-- cinta transportadora 360 de largo; superficie de apoyo en y=0 -->
+    <path class="sk w" d="M0 0 H360 A14 14 0 0 1 360 28 H0 A14 14 0 0 1 0 0Z"/>
+    <circle class="sk fino" cx="0" cy="14" r="8"/><circle class="sk fino" cx="90" cy="14" r="8"/><circle class="sk fino" cx="180" cy="14" r="8"/><circle class="sk fino" cx="270" cy="14" r="8"/><circle class="sk fino" cx="360" cy="14" r="8"/>
+    <path class="sk" d="M20 28 L14 70 M340 28 L346 70"/>
+  </g>
+  <g id="maquina"><!-- máquina con ojos, 280×234; ventana (50,62)-(230,182) para meter al bichito; bocas en (-22,92..132) y (280..302,92..132) -->
+    <path class="sk w" d="M18 30 C10 30 0 40 0 56 V196 C0 212 10 220 24 220 H256 C270 220 280 212 280 196 V56 C280 40 270 30 256 30Z"/>
+    <path class="sk w" d="M50 62 H230 V182 H50Z"/>
+    <circle class="sk w" cx="110" cy="14" r="12"/><circle class="tinta" cx="113" cy="16" r="4.5"/><circle class="sk w" cx="170" cy="14" r="12"/><circle class="tinta" cx="173" cy="16" r="4.5"/>
+    <path class="sk w" d="M-22 92 H0 V132 H-22Z M280 92 H302 V132 H280Z"/>
+    <path class="sk fino" d="M96 198 H184 V210 H96Z"/><circle class="sk fino" cx="262" cy="46" r="3"/>
+    <path class="sk" d="M30 220 V234 M250 220 V234"/>
+  </g>
+  <g id="palanca"><!-- palanca; origen = centro de la base; pomo en (17,-67) -->
+    <path class="sk w" d="M-24 0 A24 24 0 0 1 24 0Z"/><path class="sk" d="M0 -8 L16 -62"/><circle class="sk w" cx="17" cy="-67" r="8"/>
+  </g>
+  <g id="manivela"><!-- manivela; origen = eje; el bichito agarra en (36,30) -->
+    <circle class="sk w" cx="0" cy="0" r="14"/><circle class="tinta" cx="0" cy="0" r="4"/><path class="sk gordo" d="M0 0 L30 26"/><path class="sk w" d="M28 24 l14 12 l-6 6 l-14 -12Z"/>
+  </g>
+  <g id="lupa"><!-- lupa; origen = centro de la lente r=28 -->
+    <circle class="sk w" cx="0" cy="0" r="28"/><path class="sk gordo" d="M20 20 L50 50"/><path class="sk fino" d="M-14 -10 a16 16 0 0 1 10 -10"/>
+  </g>
+  <g id="puerta"><!-- puerta de arco abierta; origen = abajo-izquierda; 110×130 -->
+    <path class="sk w" d="M0 0 V-90 C0 -128 70 -128 70 -90 V0Z"/><path class="tinta" d="M8 0 V-88 C8 -116 62 -116 62 -88 V0Z"/>
+    <path class="sk w" d="M62 0 L62 -92 C70 -120 100 -116 104 -96 L104 6Z"/><circle class="sk fino" cx="94" cy="-46" r="3"/>
+    <path class="sk" d="M-10 0 H82 M-4 -1 V8 H76 V-1"/>
+  </g>
+  <g id="buzon"><!-- buzón con bandera; origen = pie -->
+    <path class="sk" d="M0 0 V-46"/><path class="sk w" d="M-22 -46 V-70 C-22 -84 22 -84 22 -70 V-46Z"/><path class="tinta" d="M-14 -58 H-4 V-50 H-14Z"/>
+    <path class="sk" d="M24 -60 V-86"/><path class="sk red w" d="M24 -86 H36 L32 -81 L36 -76 H24"/>
+  </g>
+  <g id="cajonera"><!-- archivador de 3 cajones, 110×170; rótulos en (55,40) (55,95) (55,146) -->
+    <path class="sk w" d="M0 0 H110 V170 H0Z"/><path class="sk" d="M8 10 H102 V62 H8Z M8 66 H102 V118 H8Z M8 122 H102 V164 H8Z"/>
+    <path class="sk fino" d="M44 52 H66 M44 108 H66 M44 156 H66"/>
+  </g>
+  <g id="cajon-abierto"><!-- cajón sacado con fichas dentro, 110×74; origen arriba-izquierda -->
+    <path class="sk w" d="M10 20 L14 -8 H34 L30 20 M30 20 L36 -14 H56 L50 20 M52 20 L58 -4 H78 L72 20"/><path class="sk w" d="M0 20 H110 V60 H0Z"/><path class="sk fino" d="M44 44 H66"/>
+  </g>
+  <g id="movil"><!-- móvil, 90×170; pantalla (10,20)-(80,146) -->
+    <rect class="sk w" x="0" y="0" width="90" height="170" rx="14"/><path class="sk fino" d="M10 20 H80 V146 H10Z M36 158 H54"/>
+  </g>
+  <g id="portatil"><!-- portátil abierto, 186×108; pantalla (16,10)-(154,82) -->
+    <path class="sk w" d="M8 0 H162 V92 H8Z"/><path class="sk fino" d="M16 10 H154 V82 H16Z"/><path class="sk w" d="M-8 92 H178 L170 108 H0Z"/>
+  </g>
+  <g id="bombilla"><!-- bombilla; origen = rosca abajo -->
+    <path class="sk w" d="M-10 0 V-12 C-24 -22 -28 -50 0 -54 C28 -50 24 -22 10 -12 V0Z"/><path class="sk fino" d="M-10 -4 H10 M-6 -16 L-4 -34 L4 -28 L6 -16"/>
+  </g>
+  <g id="engranaje"><!-- rueda dentada r≈38; origen = centro -->
+    <path class="sk w" d="M-6 -38 H6 L8 -30 L17 -26 L24 -32 L32 -24 L26 -17 L30 -8 L38 -6 V6 L30 8 L26 17 L32 24 L24 32 L17 26 L8 30 L6 38 H-6 L-8 30 L-17 26 L-24 32 L-32 24 L-26 17 L-30 8 L-38 6 V-6 L-30 -8 L-26 -17 L-32 -24 L-24 -32 L-17 -26 L-8 -30Z"/>
+    <circle class="sk" cx="0" cy="0" r="9"/>
+  </g>
+  <g id="reloj"><!-- despertador (cron, launchd, horarios); origen = centro, r=30 -->
+    <circle class="sk w" cx="0" cy="0" r="30"/><path class="sk" d="M0 0 V-18 M0 0 L12 6"/><path class="sk w" d="M-30 -24 a12 12 0 0 1 16 -12 Z M30 -24 a12 12 0 0 0 -16 -12 Z"/><path class="sk" d="M-18 26 l-8 10 M18 26 l8 10"/>
+  </g>
+  <g id="llave"><!-- llave; origen = centro del ojo; 76 de largo -->
+    <circle class="sk w" cx="0" cy="0" r="14"/><path class="sk" d="M14 0 H62 M44 0 V10 M54 0 V8"/><circle class="tinta" cx="0" cy="0" r="4"/>
+  </g>
+  <g id="candado"><!-- candado; origen = abajo-centro -->
+    <path class="sk" d="M-14 -40 V-54 C-14 -72 14 -72 14 -54 V-40"/><path class="sk w" d="M-24 0 V-40 H24 V0Z"/><circle class="tinta" cx="0" cy="-22" r="4"/><path class="sk fino" d="M0 -20 V-10"/>
+  </g>
+  <g id="balanza"><!-- balanza de platillos; origen = base; platillos en (-80,-56) y (80,-68) -->
+    <path class="sk" d="M0 0 V-106 M-24 0 H24 M-80 -100 L80 -112"/>
+    <path class="sk" d="M-80 -100 L-100 -60 M-80 -100 L-60 -60 M80 -112 L60 -72 M80 -112 L100 -72"/>
+    <path class="sk w" d="M-104 -60 H-56 C-60 -48 -100 -48 -104 -60Z M56 -72 H104 C100 -60 60 -60 56 -72Z"/>
+  </g>
+  <g id="mapa"><!-- mapa plegado con ruta; 160×110 -->
+    <path class="sk w" d="M0 10 L52 0 L106 10 L160 0 V100 L106 110 L52 100 L0 110Z"/><path class="sk fino" d="M52 0 V100 M106 10 V110"/>
+    <path class="sk or dash fino" d="M18 84 C40 60 70 80 90 50 C110 24 130 40 142 26"/>
+  </g>
+  <g id="pin"><!-- chincheta de mapa; origen = punta -->
+    <path class="sk red w" d="M0 0 C-4 -12 -16 -22 -16 -34 A16 16 0 0 1 16 -34 C16 -22 4 -12 0 0Z"/><circle class="sk red" cx="0" cy="-34" r="5"/>
+  </g>
+  <g id="trompetilla"><!-- trompetilla para oír (transcribir/escuchar); origen = boquilla; abre a la derecha ~110 -->
+    <path class="sk w" d="M0 -4 C30 -6 60 -24 100 -46 C108 -20 108 20 100 46 C60 24 30 6 0 4Z"/><ellipse class="sk w" cx="102" cy="0" rx="8" ry="46"/>
+  </g>
+  <g id="ojo"><!-- ojo gigante (mirar/visión); origen = centro; 120×80 -->
+    <path class="sk w" d="M-60 0 C-30 -40 30 -40 60 0 C30 40 -30 40 -60 0Z"/><circle class="sk" cx="0" cy="0" r="20"/><circle class="tinta" cx="4" cy="2" r="9"/>
+  </g>
+  <g id="tijeras"><!-- tijeras abiertas; origen = eje -->
+    <path class="sk" d="M0 0 L60 -16 M0 0 L60 16"/><circle class="sk w" cx="-16" cy="-12" r="10"/><circle class="sk w" cx="-16" cy="12" r="10"/><path class="sk" d="M-8 -6 L0 0 L-8 6"/>
+  </g>
+  <g id="sello"><!-- sello de tampón; origen = base de la goma; mango arriba en (0,-44) -->
+    <path class="sk w" d="M-26 0 V-12 H26 V0Z"/><path class="sk w" d="M-8 -12 V-36 H8 V-12"/><ellipse class="sk w" cx="0" cy="-44" rx="16" ry="9"/>
+  </g>
+  <g id="taburete"><!-- taburete; origen = centro del asiento -->
+    <path class="sk w" d="M-36 0 H36 V8 H-36Z"/><path class="sk" d="M-30 8 L-36 48 M30 8 L36 48 M-14 8 L-12 44 M14 8 L12 44"/>
+  </g>
+  <g id="cubo"><!-- cubo; origen = centro de la boca -->
+    <path class="sk fino" d="M-34 0 C-30 -40 30 -40 34 0"/><path class="sk w" d="M-34 0 L-26 56 C-20 62 20 62 26 56 L34 0"/><ellipse class="sk w" cx="0" cy="0" rx="34" ry="9"/>
+  </g>
+  <g id="tubo"><!-- tubería en codo; origen = boca de entrada a la izquierda; sale abajo en (100,90) -->
+    <path class="sk w" d="M0 -12 H80 C100 -12 112 0 112 20 V90 H88 V24 C88 16 84 12 76 12 H0Z"/><path class="sk" d="M0 -16 V16 M84 90 H116"/>
+  </g>
+  <g id="escalera"><!-- escalera de mano, 64×150; origen = pie izquierdo -->
+    <path class="sk" d="M0 0 L14 -150 M50 0 L64 -150 M4 -30 H54 M7 -60 H57 M10 -90 H60 M13 -120 H63"/>
+  </g>
+  <g id="red"><!-- red de cazar mariposas; origen = mano en el mango -->
+    <path class="sk" d="M0 0 L70 -70"/><ellipse class="sk w" cx="88" cy="-88" rx="26" ry="20" transform="rotate(-45 88 -88)"/><path class="sk fino" d="M76 -70 C90 -40 120 -60 106 -100"/>
+  </g>
+</defs>
+</svg>
+
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Monte Carlo<br><em>por dentro</em></h1>
+    <p>Un simulador que dibuja 10.000 futuros posibles de una acción y luego se examina a sí mismo: ¿sus «90%» se cumplen el 90% de las veces? Con SPY, el modelo de libro dice 50% y acierta el 73%.</p>
+    <p class="meta">5 ficheros · ~780 líneas · 16 acciones validadas · leído el 04/10/2026</p>
+  </div>
+  <svg viewBox="0 120 640 280" role="img" aria-label="El bichito tira de una cinta de precios y de sus manos sale un abanico de futuros">
+    <path class="sk w" d="M20 236 C90 246 160 226 230 240 L230 262 C160 248 90 268 20 258Z"/>
+    <use href="#xh" x="262" y="330"/>
+    <path class="brazo" d="M238 280 C236 268 234 258 232 250"/><path class="brazo" d="M290 278 C294 268 298 258 300 252"/>
+    <path class="sk fino" d="M300.0 250.0 L314.8 238.6 L329.5 227.9 L344.3 220.3 L359.0 228.0 L373.8 217.6 L388.6 207.4 L403.3 203.4 L418.1 217.3 L432.9 208.1 L447.6 201.2 L462.4 203.1 L477.1 204.5 L491.9 208.4 L506.7 202.7 L521.4 193.3 L536.2 180.0 L551.0 183.3 L565.7 181.2 L580.5 185.5 L595.2 185.9 L610.0 199.8"/>
+<path class="sk fino" d="M300.0 250.0 L314.8 237.7 L329.5 240.4 L344.3 240.3 L359.0 245.3 L373.8 232.0 L388.6 243.1 L403.3 244.0 L418.1 232.3 L432.9 218.8 L447.6 205.7 L462.4 198.5 L477.1 210.4 L491.9 219.3 L506.7 213.9 L521.4 208.4 L536.2 227.7 L551.0 236.7 L565.7 228.7 L580.5 227.2 L595.2 222.9 L610.0 224.4"/>
+<path class="sk fino" d="M300.0 250.0 L314.8 253.0 L329.5 242.6 L344.3 250.2 L359.0 259.6 L373.8 240.0 L388.6 227.0 L403.3 228.3 L418.1 225.1 L432.9 225.0 L447.6 216.4 L462.4 225.2 L477.1 233.0 L491.9 233.7 L506.7 244.9 L521.4 249.6 L536.2 241.0 L551.0 244.7 L565.7 235.1 L580.5 243.9 L595.2 243.4 L610.0 241.6"/>
+<path class="sk fino" d="M300.0 250.0 L314.8 252.4 L329.5 259.2 L344.3 253.4 L359.0 244.3 L373.8 224.4 L388.6 234.1 L403.3 234.2 L418.1 236.3 L432.9 228.5 L447.6 240.7 L462.4 250.2 L477.1 248.9 L491.9 243.4 L506.7 239.8 L521.4 231.8 L536.2 232.1 L551.0 225.9 L565.7 231.8 L580.5 228.2 L595.2 224.7 L610.0 240.0"/>
+<path class="sk fino" d="M300.0 250.0 L314.8 264.5 L329.5 265.5 L344.3 268.8 L359.0 280.1 L373.8 288.4 L388.6 294.1 L403.3 290.4 L418.1 280.2 L432.9 283.9 L447.6 278.8 L462.4 287.1 L477.1 289.2 L491.9 281.7 L506.7 284.4 L521.4 291.5 L536.2 293.3 L551.0 285.5 L565.7 288.1 L580.5 291.7 L595.2 299.9 L610.0 307.1"/>
+<path class="sk fino" d="M300.0 250.0 L314.8 245.4 L329.5 239.2 L344.3 240.5 L359.0 249.0 L373.8 247.5 L388.6 250.1 L403.3 255.4 L418.1 262.3 L432.9 253.4 L447.6 258.1 L462.4 257.9 L477.1 251.9 L491.9 245.1 L506.7 242.9 L521.4 232.9 L536.2 218.3 L551.0 219.0 L565.7 226.7 L580.5 224.3 L595.2 231.7 L610.0 227.7"/>
+<path class="sk fino" d="M300.0 250.0 L314.8 245.0 L329.5 257.1 L344.3 254.4 L359.0 261.7 L373.8 250.0 L388.6 235.8 L403.3 235.5 L418.1 231.0 L432.9 231.9 L447.6 237.2 L462.4 240.3 L477.1 236.8 L491.9 227.5 L506.7 216.9 L521.4 219.3 L536.2 236.5 L551.0 236.4 L565.7 224.5 L580.5 222.8 L595.2 230.7 L610.0 232.6"/>
+<path class="sk or gordo" d="M300.0 250.0 L314.8 245.9 L329.5 242.7 L344.3 239.3 L359.0 238.0 L373.8 232.8 L388.6 231.8 L403.3 229.3 L418.1 230.5 L432.9 231.8 L447.6 234.0 L462.4 234.9 L477.1 234.2 L491.9 235.3 L506.7 237.8 L521.4 235.8 L536.2 236.5 L551.0 235.8 L565.7 238.1 L580.5 235.8 L595.2 234.6 L610.0 234.7"/>
+  </svg>
+</header>
+<ol class="indice"><li><a href="#l1">Una fábrica de futuros con inspector</a><small>las piezas</small></li><li><a href="#l2">La campana no tapa las colas</a><small>por qué la bolsa no es normal</small></li><li><a href="#l3">El bombo de la campana</a><small>motor 1: GBM</small></li><li><a href="#l4">Tijeras y película</a><small>motor 2: bootstrap por bloques</small></li><li><a href="#l5">Una chincheta donde cayó la realidad</a><small>el examen: PIT y cobertura</small></li><li><a href="#l6">Lo que pasa cuando escribes «Apple»</a><small>un viaje por el código</small></li><li><a href="#l7">Las notas en 16 acciones</a><small>Kupiec y Kolmogorov–Smirnov</small></li><li><a href="#l8">Ocho peldaños, dos rotos</a><small>cómo se construyó</small></li><li><a href="#l9">El cuadro de fusibles</a><small>dónde tocar si se rompe</small></li></ol>
+<section class="lamina" id="l1">
+  <div class="num">LÁMINA 01 · PIEZAS</div>
+  <h2>Una fábrica de futuros con inspector</h2>
+  <p class="idea">Entra una cinta con 20 años de precios, dos motores la convierten en 10.000 futuros posibles y una lupa comprueba si esos futuros dijeron la verdad.</p>
+  <svg class="dib" viewBox="60 140 1100 360" role="img" aria-label="Bichito girando la manivela de una máquina que convierte una cinta de precios en un abanico de futuros">
+
+<circle class="sk w" cx="150" cy="262" r="44"/><circle class="sk" cx="150" cy="262" r="12"/>
+<path class="sk w" d="M150 304 C220 312 262 292 302 298 C342 304 382 300 420 300 L420 330 C382 330 342 334 302 328 C262 322 220 342 150 336 Z"/>
+<text class="p mute" x="196" y="326">333,7 · 331,2 · 340,8</text>
+<g transform="translate(440 200)"><use href="#maquina"/></g>
+<g transform="translate(548 314) scale(.85)"><use href="#engranaje"/></g>
+<g transform="translate(612 314) scale(.85)"><use href="#engranaje"/></g>
+<text class="p" x="548" y="374" text-anchor="middle">GBM</text>
+<text class="p" x="614" y="374" text-anchor="middle">bloques</text>
+<circle class="sk w" cx="463" cy="398" r="11"/><circle class="tinta" cx="463" cy="398" r="3.5"/>
+<path class="sk gordo" d="M463 398 L432 414"/><path class="sk w" d="M436 407 l-12 10 l5 6 l12 -10Z"/>
+<use href="#xh" x="378" y="474"/>
+<path class="brazo" d="M406 422 C414 420 420 418 428 414"/><use href="#mano" x="428" y="414"/>
+<path class="brazo" d="M354 424 C346 438 344 446 350 452"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 305.4 L763.4 301.0 L774.2 296.3 L784.9 297.9 L795.6 296.4 L806.3 297.2 L817.0 302.3 L827.8 307.4 L838.5 310.3 L849.2 307.6 L859.9 303.0 L870.6 298.1 L881.4 296.1 L892.1 295.8 L902.8 289.9 L913.5 283.1 L924.2 285.0 L935.0 273.9 L945.7 272.8 L956.4 275.3 L967.1 269.4 L977.8 262.8 L988.6 258.2 L999.3 262.1 L1010.0 261.3"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 312.2 L763.4 320.4 L774.2 327.7 L784.9 324.7 L795.6 322.9 L806.3 319.7 L817.0 323.1 L827.8 322.8 L838.5 327.3 L849.2 316.2 L859.9 325.6 L870.6 325.0 L881.4 329.1 L892.1 328.3 L902.8 326.0 L913.5 328.8 L924.2 333.7 L935.0 332.5 L945.7 331.6 L956.4 335.7 L967.1 330.5 L977.8 321.4 L988.6 323.8 L999.3 319.7 L1010.0 308.2"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 312.0 L763.4 318.2 L774.2 322.7 L784.9 327.0 L795.6 336.7 L806.3 329.5 L817.0 325.7 L827.8 317.8 L838.5 317.2 L849.2 323.2 L859.9 323.0 L870.6 326.0 L881.4 314.5 L892.1 315.4 L902.8 310.0 L913.5 320.6 L924.2 326.0 L935.0 331.7 L945.7 331.3 L956.4 335.0 L967.1 338.9 L977.8 336.9 L988.6 333.9 L999.3 333.2 L1010.0 329.6"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 323.0 L763.4 304.5 L774.2 310.2 L784.9 310.7 L795.6 318.6 L806.3 320.9 L817.0 331.8 L827.8 332.0 L838.5 328.9 L849.2 332.4 L859.9 335.0 L870.6 332.9 L881.4 331.4 L892.1 335.7 L902.8 339.9 L913.5 337.0 L924.2 334.8 L935.0 323.9 L945.7 334.0 L956.4 332.6 L967.1 340.7 L977.8 343.2 L988.6 354.8 L999.3 364.1 L1010.0 366.0"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 316.2 L763.4 310.3 L774.2 300.9 L784.9 283.3 L795.6 281.2 L806.3 288.7 L817.0 288.9 L827.8 291.9 L838.5 298.1 L849.2 292.8 L859.9 308.7 L870.6 303.4 L881.4 305.7 L892.1 322.1 L902.8 321.4 L913.5 322.1 L924.2 319.0 L935.0 321.1 L945.7 308.3 L956.4 304.4 L967.1 314.6 L977.8 315.8 L988.6 314.4 L999.3 316.6 L1010.0 319.1"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 303.4 L763.4 297.8 L774.2 300.2 L784.9 297.0 L795.6 300.2 L806.3 305.0 L817.0 296.4 L827.8 302.5 L838.5 298.9 L849.2 311.4 L859.9 315.8 L870.6 312.6 L881.4 313.8 L892.1 315.1 L902.8 317.1 L913.5 325.4 L924.2 328.6 L935.0 338.6 L945.7 342.4 L956.4 341.3 L967.1 332.2 L977.8 322.8 L988.6 324.0 L999.3 328.2 L1010.0 336.8"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 308.4 L763.4 312.2 L774.2 318.5 L784.9 324.6 L795.6 335.5 L806.3 333.2 L817.0 336.5 L827.8 334.3 L838.5 325.8 L849.2 321.5 L859.9 322.3 L870.6 316.9 L881.4 315.7 L892.1 322.4 L902.8 325.9 L913.5 329.3 L924.2 331.4 L935.0 330.3 L945.7 319.1 L956.4 325.0 L967.1 316.0 L977.8 317.3 L988.6 316.7 L999.3 317.5 L1010.0 319.0"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 318.6 L763.4 320.6 L774.2 317.4 L784.9 309.8 L795.6 298.5 L806.3 298.6 L817.0 293.7 L827.8 288.5 L838.5 287.2 L849.2 286.8 L859.9 273.2 L870.6 278.7 L881.4 266.6 L892.1 277.7 L902.8 281.3 L913.5 278.4 L924.2 286.5 L935.0 286.6 L945.7 290.8 L956.4 291.4 L967.1 298.0 L977.8 304.4 L988.6 298.9 L999.3 295.2 L1010.0 297.3"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 309.4 L763.4 302.6 L774.2 306.7 L784.9 300.0 L795.6 312.1 L806.3 317.6 L817.0 315.5 L827.8 318.9 L838.5 328.6 L849.2 345.6 L859.9 340.1 L870.6 346.4 L881.4 349.5 L892.1 347.9 L902.8 354.4 L913.5 357.5 L924.2 363.9 L935.0 360.8 L945.7 360.8 L956.4 363.1 L967.1 363.2 L977.8 363.3 L988.6 358.7 L999.3 359.5 L1010.0 360.6"/>
+<path class="sk fino" d="M742.0 312.0 L752.7 309.8 L763.4 315.7 L774.2 318.2 L784.9 314.5 L795.6 318.6 L806.3 309.9 L817.0 313.4 L827.8 310.1 L838.5 313.8 L849.2 316.5 L859.9 311.9 L870.6 315.0 L881.4 317.1 L892.1 313.2 L902.8 325.2 L913.5 330.0 L924.2 322.9 L935.0 317.0 L945.7 318.9 L956.4 320.8 L967.1 316.4 L977.8 323.7 L988.6 324.3 L999.3 319.1 L1010.0 316.9"/>
+<path class="sk or gordo" d="M742.0 312.0 L752.7 309.9 L763.4 306.7 L774.2 305.8 L784.9 306.1 L795.6 307.9 L806.3 307.6 L817.0 306.0 L827.8 303.9 L838.5 304.9 L849.2 307.7 L859.9 307.7 L870.6 304.8 L881.4 302.3 L892.1 305.0 L902.8 304.9 L913.5 301.0 L924.2 300.3 L935.0 297.5 L945.7 295.7 L956.4 294.3 L967.1 292.3 L977.8 292.9 L988.6 292.3 L999.3 290.6 L1010.0 290.9"/>
+<g transform="translate(1050 312)"><use href="#lupa"/></g>
+<text class="g" x="80" y="200">20 años de precios</text>
+<text x="580" y="176" text-anchor="middle">dos motores</text>
+<text class="or" x="870" y="168" text-anchor="middle">10.000 futuros</text>
+<text class="red" x="1010" y="420" text-anchor="middle">¿cumple lo prometido?</text>
+<text class="code" x="580" y="462" text-anchor="middle">analyze() · montecarlo.py:206</text>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Escribes «Apple». El programa baja 20 años de precios de Yahoo y mide cuánto se mueve la acción. Con eso fabrica 10.000 futuros a 3 meses de dos maneras distintas.</p><p>Lo que lo hace distinto de los cientos de repos iguales: al final <b>se examina a sí mismo</b> contra 15 años de fechas reales.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>cinta de precios</td><td>baja el histórico ajustado y elige la bolsa que más mueve (resolución por nombre)</td><td><span class="ref">montecarlo.py:99</span></td></tr>
+<tr><td>engranaje GBM</td><td>inventa días con una campana normal (movimiento browniano geométrico)</td><td><span class="ref">montecarlo.py:48</span></td></tr>
+<tr><td>engranaje bloques</td><td>copia meses reales del pasado en otro orden (bootstrap por bloques)</td><td><span class="ref">montecarlo.py:52</span></td></tr>
+<tr><td>abanico</td><td>10.000 caminos → franjas, VaR, Expected Shortfall</td><td><span class="ref">montecarlo.py:147</span></td></tr>
+<tr><td>lupa</td><td>el examen: ¿se cumplen sus «90%»? (backtest de calibración)</td><td><span class="ref">montecarlo.py:182</span></td></tr>
+<tr><td>ventanilla</td><td>servidor sin dependencias que entrega todo en un JSON</td><td><span class="ref">server.py:31</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> Apple a 3 meses desde 333,69 USD: 6 de cada 10 futuros acaban en verde (64,0% con bootstrap, 62,1% con GBM).</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l2">
+  <div class="num">LÁMINA 02 · ETAPA · LOS DATOS</div>
+  <h2>La campana no tapa las colas</h2>
+  <p class="idea">El bichito baja una campana de cristal (la distribución normal) sobre un montón de días reales: los tranquilos caben, pero los días extremos se quedan fuera, en rojo.</p>
+  <svg class="dib" viewBox="220 80 840 440" role="img" aria-label="Bichito bajando con una cuerda una campana de cristal sobre un histograma; los días extremos quedan fuera">
+
+<path class="sk fino" d="M250 470 C450 472 760 468 960 470"/>
+<path class="sk w" d="M458 470 V464 H478 V470"/>
+<path class="sk w" d="M480 470 V458 H500 V470"/>
+<path class="sk w" d="M502 470 V446 H522 V470"/>
+<path class="sk w" d="M524 470 V424 H544 V470"/>
+<path class="sk w" d="M546 470 V384 H566 V470"/>
+<path class="sk w" d="M568 470 V320 H588 V470"/>
+<path class="sk w" d="M590 470 V260 H610 V470"/>
+<path class="sk w" d="M612 470 V320 H632 V470"/>
+<path class="sk w" d="M634 470 V384 H654 V470"/>
+<path class="sk w" d="M656 470 V424 H676 V470"/>
+<path class="sk w" d="M678 470 V446 H698 V470"/>
+<path class="sk w" d="M700 470 V458 H720 V470"/>
+<path class="sk w" d="M722 470 V464 H742 V470"/>
+<path class="sk red w" d="M326 470 V460 H346 V470"/>
+<path class="sk red w" d="M370 470 V454 H390 V470"/>
+<path class="sk red w" d="M810 470 V458 H830 V470"/>
+<path class="sk red w" d="M854 470 V462 H874 V470"/>
+<path class="sk" d="M560 96 H990"/><path class="sk" d="M570 96 V108 M980 96 V108"/>
+<circle class="sk w" cx="600" cy="120" r="12"/><circle class="sk w" cx="975" cy="120" r="12"/>
+<path class="sk fino" d="M600 132 V214 M612 120 H963 M987 120 V338"/>
+<path class="sk blue" d="M430 440 C428 330 480 236 600 232 C720 236 772 330 770 440"/>
+<ellipse class="sk blue" cx="600" cy="440" rx="170" ry="13"/>
+<circle class="sk blue w" cx="600" cy="222" r="9"/>
+<use href="#xh" x="990" y="470"/>
+<path class="brazo" d="M966 420 C970 380 978 360 985 342"/><path class="brazo" d="M1018 418 C1010 386 996 360 989 346"/>
+<use href="#sudor" x="1030" y="400"/>
+<text class="blue" x="420" y="266" text-anchor="end">la campana</text>
+<text class="p" x="664" y="300">días tranquilos</text>
+<text class="red" x="300" y="400" text-anchor="middle">colas gordas</text>
+<path class="sk red fino" d="M310 410 L338 448" marker-end="url(#ah-red)"/>
+<text class="red p" x="860" y="420" text-anchor="middle">38 días vs 0,3</text>
+<text class="code" x="600" y="500" text-anchor="middle">fat_tails() · montecarlo.py:127</text>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Si los días de bolsa siguieran una campana, un día de más de 4 desviaciones (±4σ) pasaría unas 0,3 veces en 20 años de SPY. Pasó <b>38 veces</b>.</p><p>Y el centro es más estrecho de lo que dice la campana: muchos días aburridos y unos pocos brutales. Eso se mide con la curtosis: 0 en una campana y 14,1 en SPY.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>montón de días</td><td>histograma de rendimientos diarios en log, en desviaciones (z)</td><td><span class="ref">montecarlo.py:132</span></td></tr>
+<tr><td>campana de cristal</td><td>lo que esperaría una normal con la misma σ</td><td><span class="ref">montecarlo.py:135</span></td></tr>
+<tr><td>bloques rojos</td><td>días de más de ±4σ: reales frente a esperados (2·Φ(−4)·n)</td><td><span class="ref">montecarlo.py:139</span></td></tr>
+<tr><td>la gráfica en la web</td><td>barras reales frente a curva normal, en escala log</td><td><span class="ref">docs/demo/index.html:251</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> SPY 2006-2026: 38 días por encima de ±4σ, cuando la campana esperaría 0,32. Curtosis en exceso 14,1. Peor día de Apple: −17,9%.</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l3">
+  <div class="num">LÁMINA 03 · ETAPA · MOTOR 1</div>
+  <h2>El bombo de la campana</h2>
+  <p class="idea">El bichito gira un bombo de lotería cuyas bolas salen de una campana N(μ, σ). Cada bola es un día; 63 bolas seguidas son un futuro de 3 meses.</p>
+  <svg class="dib" viewBox="180 130 1000 400" role="img" aria-label="Bichito girando un bombo de lotería; las bolas salen y forman el camino de un precio">
+
+<path class="sk" d="M380 386 L346 470 M480 386 L514 470 M330 470 H530"/>
+<circle class="sk w" cx="430" cy="290" r="110"/>
+<path class="sk fino" d="M330 250 C380 270 480 270 530 250 M326 310 C380 330 480 330 534 310 M380 192 C360 240 360 340 380 388 M480 192 C500 240 500 340 480 388"/>
+<circle class="sk w" cx="398" cy="330" r="12"/><circle class="tinta" cx="452" cy="346" r="12"/><circle class="sk w" cx="470" cy="312" r="12"/>
+<circle class="sk w" cx="420" cy="354" r="12"/><circle class="tinta" cx="382" cy="356" r="12"/><circle class="sk w" cx="490" cy="350" r="12"/>
+<circle class="sk w" cx="430" cy="290" r="9"/><circle class="tinta" cx="430" cy="290" r="3"/>
+<path class="sk gordo" d="M430 290 L306 334"/><path class="sk w" d="M310 326 l-12 10 l6 6 l12 -10Z"/>
+<use href="#xh" x="262" y="470"/>
+<path class="brazo" d="M290 418 C296 380 300 360 302 340"/><use href="#mano" x="302" y="340"/>
+<path class="sk w" d="M516 352 L612 418 L600 434 L506 368Z"/>
+<path class="sk or" d="M630.0 430.0 L660.0 427.0 L690.0 428.2 L720.0 421.4 L750.0 405.9 L780.0 396.5 L810.0 379.6 L840.0 377.5 L870.0 393.3 L900.0 383.4 L930.0 371.7 L960.0 375.5 L990.0 377.5 L1020.0 376.0 L1050.0 360.0 L1080.0 356.6"/>
+<circle class="sk w" cx="630" cy="430" r="9"/>
+<circle class="sk w" cx="660" cy="427" r="9"/>
+<circle class="sk w" cx="690" cy="428" r="9"/>
+<circle class="sk w" cx="720" cy="421" r="9"/>
+<circle class="sk w" cx="750" cy="406" r="9"/>
+<circle class="sk w" cx="780" cy="397" r="9"/>
+<circle class="sk w" cx="810" cy="380" r="9"/>
+<circle class="sk w" cx="840" cy="377" r="9"/>
+<circle class="sk w" cx="870" cy="393" r="9"/>
+<circle class="sk w" cx="900" cy="383" r="9"/>
+<circle class="sk w" cx="930" cy="372" r="9"/>
+<circle class="sk w" cx="960" cy="376" r="9"/>
+<circle class="sk w" cx="990" cy="378" r="9"/>
+<circle class="sk w" cx="1020" cy="376" r="9"/>
+<circle class="sk w" cx="1050" cy="360" r="9"/>
+<circle class="sk w" cx="1080" cy="357" r="9"/>
+<text class="blue g" x="430" y="166" text-anchor="middle">N(μ, σ)</text>
+<text x="760" y="470" text-anchor="middle">una bola = un día</text>
+<text class="red" x="1100" y="333" text-anchor="middle">×10.000</text>
+<text class="code" x="430" y="500" text-anchor="middle">sim_gbm() · montecarlo.py:48</text>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Toma los últimos 5 años (1.260 días). Mide la subida media diaria y lo que se mueve: μ = 20,8% y σ = 27,9% al año en Apple. Luego sortea cada día de una campana con esos dos números.</p><p>Es la fórmula del libro, <b>S<sub>T</sub> = S<sub>0</sub>·exp((μ − σ²/2)T + σ√T·Z)</b>, la misma que hay debajo de Black–Scholes. Se puede comprobar con lápiz, y por eso es la primera prueba de que el código está bien.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>bombo</td><td>sortea 10.000 × 63 rendimientos de N(media, desviación)</td><td><span class="ref">montecarlo.py:48</span></td></tr>
+<tr><td>camino de bolas</td><td>suma acumulada de logs → precio (exp de la suma)</td><td><span class="ref">montecarlo.py:169</span></td></tr>
+<tr><td>lápiz y papel</td><td>test: simulado frente a fórmula cerrada lognormal</td><td><span class="ref">test_montecarlo.py:38</span></td></tr>
+<tr><td>la fórmula en la web</td><td>KaTeX con los números reales de la acción</td><td><span class="ref">docs/demo/index.html:273</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> Apple 3m, P(ganar): 62,05% simulado frente a 61,89% exacto; el azar de 10.000 caminos permite ±0,95 puntos. VaR 95%: 17,0% frente a 17,1%.</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l4">
+  <div class="num">LÁMINA 04 · ETAPA · MOTOR 2</div>
+  <h2>Tijeras y película: el futuro hecho de pasado</h2>
+  <p class="idea">El bichito corta trozos de 21 días de la película real de los últimos años y los empalma en otro orden: un futuro nuevo hecho con días que sí pasaron.</p>
+  <svg class="dib" viewBox="40 160 1120 440" role="img" aria-label="Bichito subido a un taburete cortando con tijeras una tira de película de precios; los trozos se empalman abajo en otro orden">
+
+<path class="sk w" d="M60 230 H430 M475 230 H1140 M60 270 H430 M475 270 H1140"/>
+<path class="sk fino" d="M100 230 V270 M145 230 V270 M190 230 V270 M235 230 V270 M280 230 V270 M325 230 V270 M370 230 V270 M415 230 V270 M460 230 V270 M505 230 V270 M550 230 V270 M595 230 V270 M640 230 V270 M685 230 V270 M730 230 V270 M775 230 V270 M820 230 V270 M865 230 V270 M910 230 V270 M955 230 V270 M1000 230 V270 M1045 230 V270 M1090 230 V270 M1135 230 V270 "/>
+<path class="sk fino" d="M80 236 h8 v6 h-8Z M80 258 h8 v6 h-8Z M110 236 h8 v6 h-8Z M110 258 h8 v6 h-8Z M140 236 h8 v6 h-8Z M140 258 h8 v6 h-8Z M170 236 h8 v6 h-8Z M170 258 h8 v6 h-8Z M200 236 h8 v6 h-8Z M200 258 h8 v6 h-8Z M230 236 h8 v6 h-8Z M230 258 h8 v6 h-8Z M260 236 h8 v6 h-8Z M260 258 h8 v6 h-8Z M290 236 h8 v6 h-8Z M290 258 h8 v6 h-8Z M320 236 h8 v6 h-8Z M320 258 h8 v6 h-8Z M350 236 h8 v6 h-8Z M350 258 h8 v6 h-8Z M380 236 h8 v6 h-8Z M380 258 h8 v6 h-8Z M410 236 h8 v6 h-8Z M410 258 h8 v6 h-8Z M440 236 h8 v6 h-8Z M440 258 h8 v6 h-8Z M470 236 h8 v6 h-8Z M470 258 h8 v6 h-8Z M500 236 h8 v6 h-8Z M500 258 h8 v6 h-8Z M530 236 h8 v6 h-8Z M530 258 h8 v6 h-8Z M560 236 h8 v6 h-8Z M560 258 h8 v6 h-8Z M590 236 h8 v6 h-8Z M590 258 h8 v6 h-8Z M620 236 h8 v6 h-8Z M620 258 h8 v6 h-8Z M650 236 h8 v6 h-8Z M650 258 h8 v6 h-8Z M680 236 h8 v6 h-8Z M680 258 h8 v6 h-8Z M710 236 h8 v6 h-8Z M710 258 h8 v6 h-8Z M740 236 h8 v6 h-8Z M740 258 h8 v6 h-8Z M770 236 h8 v6 h-8Z M770 258 h8 v6 h-8Z M800 236 h8 v6 h-8Z M800 258 h8 v6 h-8Z M830 236 h8 v6 h-8Z M830 258 h8 v6 h-8Z M860 236 h8 v6 h-8Z M860 258 h8 v6 h-8Z M890 236 h8 v6 h-8Z M890 258 h8 v6 h-8Z M920 236 h8 v6 h-8Z M920 258 h8 v6 h-8Z M950 236 h8 v6 h-8Z M950 258 h8 v6 h-8Z M980 236 h8 v6 h-8Z M980 258 h8 v6 h-8Z M1010 236 h8 v6 h-8Z M1010 258 h8 v6 h-8Z M1040 236 h8 v6 h-8Z M1040 258 h8 v6 h-8Z M1070 236 h8 v6 h-8Z M1070 258 h8 v6 h-8Z M1100 236 h8 v6 h-8Z M1100 258 h8 v6 h-8Z M1130 236 h8 v6 h-8Z M1130 258 h8 v6 h-8Z "/>
+<path class="sk red gordo" d="M760 230 H850 M760 270 H850 M760 230 V270 M850 230 V270"/>
+<path class="sk dash fino" d="M430 230 V270 M475 230 V270"/>
+<g transform="translate(452 440)"><use href="#taburete"/></g>
+<use href="#xh-alto" x="452" y="440"/>
+<g transform="translate(453 304) rotate(-90) scale(1.3)"><use href="#tijeras"/></g>
+<path class="brazo" d="M432 370 C434 350 436 334 438 324"/><path class="brazo" d="M475 368 C474 350 470 334 468 324"/>
+<g transform="translate(560 330) rotate(-8)"><path class="sk w" d="M0 0 H90 V40 H0Z"/><path class="sk fino" d="M30 0 V40 M60 0 V40"/></g><g transform="translate(690 345) rotate(6)"><path class="sk w" d="M0 0 H90 V40 H0Z"/><path class="sk fino" d="M30 0 V40 M60 0 V40"/></g><g transform="translate(820 322) rotate(-4)"><path class="sk w red" d="M0 0 H90 V40 H0Z"/><path class="sk fino red" d="M30 0 V40 M60 0 V40"/></g>
+<path class="sk or" d="M760 400 C790 440 820 460 860 470" marker-end="url(#ah-or)"/>
+<g transform="translate(640 480) rotate(0)"><path class="sk w" d="M0 0 H90 V40 H0Z"/><path class="sk fino" d="M30 0 V40 M60 0 V40"/></g><g transform="translate(735 480) rotate(0)"><path class="sk w red" d="M0 0 H90 V40 H0Z"/><path class="sk fino red" d="M30 0 V40 M60 0 V40"/></g><g transform="translate(830 480) rotate(0)"><path class="sk w" d="M0 0 H90 V40 H0Z"/><path class="sk fino" d="M30 0 V40 M60 0 V40"/></g><g transform="translate(925 480) rotate(0)"><path class="sk w" d="M0 0 H90 V40 H0Z"/><path class="sk fino" d="M30 0 V40 M60 0 V40"/></g><g transform="translate(1020 480) rotate(0)"><path class="sk w" d="M0 0 H90 V40 H0Z"/><path class="sk fino" d="M30 0 V40 M60 0 V40"/></g>
+<text x="60" y="210">5 años reales</text>
+<text class="red" x="805" y="210" text-anchor="middle">un crash real</text>
+<text x="650" y="318">trozos de 21 días</text>
+<text class="or" x="880" y="560" text-anchor="middle">un futuro nuevo</text>
+<text class="code" x="260" y="480" text-anchor="middle">sim_bootstrap() · montecarlo.py:52</text>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Este motor no supone ninguna campana: sortea <b>meses enteros reales</b> (bloques de 21 días) de los últimos 5 años y los pega uno detrás de otro.</p><p>¿Por qué bloques y no días sueltos? Los días malos vienen en racimo: tras un crash suele venir otro día malo (agrupamiento de volatilidad). Con un mes entero, el racimo sobrevive.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>tira de película</td><td>rendimientos diarios en log de la ventana de calibración</td><td><span class="ref">montecarlo.py:212</span></td></tr>
+<tr><td>tijeras</td><td>inicio aleatorio de cada bloque (np.random.integers)</td><td><span class="ref">montecarlo.py:54</span></td></tr>
+<tr><td>empalme</td><td>índices bloque a bloque, recortados a los días del horizonte</td><td><span class="ref">montecarlo.py:55</span></td></tr>
+<tr><td>test</td><td>comprueba que solo usa días reales y la longitud pedida</td><td><span class="ref">test_montecarlo.py:19</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> Apple 3m, Expected Shortfall 95%: 20,1% con bootstrap frente a 21,8% con GBM. Probabilidad de ganar con 5 semillas distintas: entre 63,1% y 64,3%.</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l5">
+  <div class="num">LÁMINA 05 · ETAPA · EL EXAMEN</div>
+  <h2>Una chincheta donde cayó la realidad</h2>
+  <p class="idea">En cada fecha del pasado, el simulador hace su abanico. El bichito clava una chincheta en el punto de ese abanico donde cayó el precio real, y luego se cuenta cuántas chinchetas quedaron dentro de la franja prometida.</p>
+  <svg class="dib" viewBox="200 90 820 430" role="img" aria-label="Bichito clavando una chincheta roja en una regla del 0 al 100%; a la izquierda un montón de calendarios y a la derecha una hoja de recuento">
+
+<path class="sk w" d="M600 120 H650 V480 H600Z"/>
+<path class="sk fino" d="M600 120 h18 M600 156 h10 M600 192 h10 M600 228 h10 M600 264 h10 M600 300 h18 M600 336 h10 M600 372 h10 M600 408 h10 M600 444 h10 M600 480 h18 "/>
+<path class="sk blue" d="M666 138 h10 V462 h-10"/>
+<g transform="translate(600 347) rotate(-90)"><use href="#pin"/></g>
+<use href="#xh" x="500" y="476"/>
+<path class="brazo" d="M528 424 C540 400 552 370 560 352"/><use href="#mano" x="560" y="352"/>
+<g transform="translate(260 380) scale(1.4)"><use href="#pila"/></g>
+<g transform="translate(860 300) scale(1.9)"><use href="#hoja"/></g>
+<path class="sk" d="M880 334 v24 M888 334 v24 M896 334 v24 M904 334 v24 M876 352 l34 -14"/>
+<path class="sk red" d="M880 374 v22 M888 374 v22"/>
+<text class="p" x="592" y="128" text-anchor="end">100%</text>
+<text class="p" x="592" y="486" text-anchor="end">0%</text>
+<text class="blue" x="690" y="300">franja del 90%</text>
+<text class="red" x="430" y="300" text-anchor="middle">aquí cayó la realidad</text>
+<text x="310" y="360" text-anchor="middle">177 fechas</text>
+<text class="p" x="958" y="354">dentro</text>
+<text class="red p" x="958" y="394">fuera</text>
+<text class="code" x="625" y="520" text-anchor="middle">exam() · montecarlo.py:182</text>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Es como juzgar al hombre del tiempo: no por un día, sino por si llueve el 70% de las veces que dice «70%».</p><p>En cada fecha (una por mes desde 2011) el simulador solo ve los 5 años anteriores. Se mira qué fracción de sus caminos quedó por debajo del precio real: es el <b>PIT</b> (probability integral transform). Si el modelo es honesto, los PIT salen repartidos por igual entre 0 y 1.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>regla 0-100%</td><td>el abanico de esa fecha, ordenado de peor a mejor</td><td><span class="ref">montecarlo.py:188</span></td></tr>
+<tr><td>chincheta (GBM)</td><td>PIT exacto con la normal, sin simular</td><td><span class="ref">montecarlo.py:191</span></td></tr>
+<tr><td>chincheta (bootstrap)</td><td>PIT con 2.000 caminos por fecha</td><td><span class="ref">montecarlo.py:192</span></td></tr>
+<tr><td>hoja de recuento</td><td>cobertura: % de PIT dentro de cada franja</td><td><span class="ref">montecarlo.py:199</span></td></tr>
+<tr><td>calendarios</td><td>fechas que se pisan → pruebas independientes = fechas·21/días</td><td><span class="ref">montecarlo.py:194</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> Apple 3m: 177 fechas, equivalentes a 59 pruebas independientes. Franja del 90%: GBM 94,4%, bootstrap 93,2%, y las dos caben en el margen de suerte de ±7,6 puntos.</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l6">
+  <div class="num">LÁMINA 06 · VIAJE</div>
+  <h2>Lo que pasa cuando escribes «Apple»</h2>
+  <p class="idea">El bichito lleva un sobre con «Apple» por un camino de cinco paradas, desde la caja de texto hasta los seis pasos que se pintan en pantalla.</p>
+  <svg class="dib" viewBox="40 200 1140 330" role="img" aria-label="Camino naranja con cinco paradas: portátil, buzón, lupa, engranajes y cartel; el bichito lleva un sobre">
+
+<path class="sk or dash" d="M60 430 C200 430 260 350 380 350 S560 430 680 420 S880 330 980 330 S1100 380 1160 380"/>
+<g transform="translate(86 296) scale(.7)"><use href="#portatil"/></g>
+<path class="sk or fino" d="M120 330 h40"/>
+<g transform="translate(380 344)"><use href="#buzon"/></g>
+<g transform="translate(650 350)"><use href="#lupa"/></g>
+<g transform="translate(880 270) scale(.6)"><use href="#engranaje"/></g><g transform="translate(925 290) scale(.6)"><use href="#engranaje"/></g>
+<g transform="translate(1120 370)"><use href="#cartel"/></g>
+<use href="#xh" x="520" y="404"/>
+<g transform="translate(528 330) scale(.55)"><use href="#sobre"/></g>
+<path class="brazo" d="M496 354 C506 350 514 346 528 344"/><path class="brazo" d="M548 352 C556 350 566 348 572 346"/>
+<text class="p" x="150" y="470" text-anchor="middle">1 · escribes Apple</text>
+<text class="p" x="380" y="392" text-anchor="middle">2 · /api/sim</text>
+<text class="p" x="650" y="470" text-anchor="middle">3 · elige AAPL</text>
+<text class="p" x="905" y="420" text-anchor="middle">4 · caminos + examen</text>
+<text class="p" x="1120" y="292" text-anchor="middle">6 de 10</text>
+<text class="code" x="150" y="494" text-anchor="middle">index.html:385</text>
+<text class="code" x="650" y="494" text-anchor="middle">montecarlo.py:99</text>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Pulsas «Simular». La web llama al servidor, que busca la empresa por su nombre y elige la cotización que más dinero mueve. Calcula los dos motores y el examen y lo devuelve todo de una vez. Tarda unos 4 segundos.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>1 · portátil</td><td>lee el texto y el horizonte y llama al servidor (fetch)</td><td><span class="ref">docs/demo/index.html:377</span></td></tr>
+<tr><td>2 · buzón</td><td>servidor stdlib: /api/sim → analyze()</td><td><span class="ref">server.py:31</span></td></tr>
+<tr><td>3 · lupa</td><td>Yahoo → candidatos → el más negociado con datos limpios</td><td><span class="ref">montecarlo.py:117</span></td></tr>
+<tr><td>4 · engranajes</td><td>simulate() con los dos motores + exam()</td><td><span class="ref">montecarlo.py:165</span></td></tr>
+<tr><td>5 · cartel</td><td>pinta el titular, el cono, las cifras y el examen</td><td><span class="ref">docs/demo/index.html:370</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> «Inditex» no devuelve ITX.MC en Yahoo: se resuelve a IXD1.DE (Xetra, mismos euros). El ticker exacto ITX.MC se respeta.</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l7">
+  <div class="num">LÁMINA 07 · DATOS · LA PRUEBA</div>
+  <h2>Las notas en 16 acciones</h2>
+  <p class="idea">El bichito levanta los dos boletines tras examinar a los motores en 16 acciones con los tests que usa un banco: la campana suspende la forma en la mitad y el bootstrap aprueba en todas.</p>
+  <svg class="dib" viewBox="250 100 740 400" role="img" aria-label="Bichito alto levantando dos boletines de notas, uno con suspensos en rojo y otro aprobado">
+
+<path class="sk w" d="M300 170 H510 V340 H300Z"/><path class="sk fino" d="M314 206 H496"/><path class="sk w" d="M690 170 H900 V340 H690Z"/><path class="sk fino" d="M704 206 H886"/>
+<use href="#xh-alto" x="600" y="470"/>
+<path class="brazo" d="M580 400 C560 370 530 350 508 336"/><use href="#mano" x="508" y="336"/>
+<path class="brazo" d="M623 398 C646 370 670 350 692 336"/><use href="#mano" x="692" y="336" transform="rotate(180 692 336)"/>
+<use href="#sudor" x="262" y="200"/><g transform="translate(940 170)"><use href="#chispa"/></g>
+<text class="g" x="405" y="198" text-anchor="middle">GBM</text>
+<text class="red" x="405" y="250" text-anchor="middle">forma: 8/16 ✗</text>
+<text class="p" x="405" y="300" text-anchor="middle">«50%» → 62%</text>
+<text class="g" x="795" y="198" text-anchor="middle">Bootstrap</text>
+<text x="795" y="250" text-anchor="middle">forma: 0/16 ✓</text>
+<text class="p" x="795" y="300" text-anchor="middle">«50%» → 52%</text>
+<text class="blue" x="600" y="130" text-anchor="middle">Kupiec + Kolmogorov–Smirnov</text>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Para no elegir 4 acciones que salgan bien, el examen se repite en 16: EE. UU., España, Reino Unido y ETFs, a 1 mes. Hay dos pruebas formales:</p><p><b>Kupiec</b> (la de Basilea) cuenta las roturas del VaR 95%. <b>Kolmogorov–Smirnov</b> mira si los PIT están repartidos por igual, o sea, si acierta la <i>forma</i> entera. El GBM casi siempre pasa Kupiec, pero suspende KS en 8 de 16: <b>mirando solo el VaR, no ves el fallo</b>.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>boletín GBM</td><td>franja del 50% → 61,9%; roturas del VaR 95% → 3,5%</td><td><span class="ref">validar.py:21</span></td></tr>
+<tr><td>boletín bootstrap</td><td>franja del 50% → 51,6%; roturas → 4,9%</td><td><span class="ref">validar.py:21</span></td></tr>
+<tr><td>Kupiec + KS</td><td>chi² con 1 g.l. sobre roturas; KS frente a la uniforme</td><td><span class="ref">validar.py:28</span></td></tr>
+<tr><td>la diagonal en la web</td><td>curva prometido-vs-real + margen binomial</td><td><span class="ref">docs/demo/index.html:338</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> SPY a 1 mes, 179 pruebas: el GBM dice 50% y acierta el 73,2%; el bootstrap, el 53,6%. El margen de suerte es de ±7,3 puntos: el fallo del GBM no es casualidad.</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l8">
+  <div class="num">LÁMINA 08 · HISTORIA</div>
+  <h2>Ocho peldaños, dos rotos</h2>
+  <p class="idea">El proyecto se construyó en un día. El bichito sube la escalera y se para delante del peldaño roto: dos veces algo parecía bien y no lo estaba.</p>
+  <svg class="dib" viewBox="100 140 1060 400" role="img" aria-label="Escalera de ocho peldaños con dos rotos en rojo; el bichito sube">
+
+<path class="sk" d="M120 520 V475 H245"/>
+<text class="p" x="182" y="505" text-anchor="middle">reel nº 2</text>
+<path class="sk" d="M245 475 V430 H370"/>
+<text class="p" x="307" y="460" text-anchor="middle">«cliché»</text>
+<path class="sk" d="M370 430 V385 H495"/>
+<text class="p" x="432" y="415" text-anchor="middle">el plan</text>
+<path class="sk" d="M495 385 V340 H620"/>
+<text class="p" x="557" y="370" text-anchor="middle">test 90% ✓</text>
+<path class="sk red" d="M620 340 V295 H745"/>
+<g transform="translate(724 295)"><use href="#grieta"/></g>
+<text class="p red" x="682" y="325" text-anchor="middle">Hannover</text>
+<path class="sk" d="M745 295 V250 H870"/>
+<text class="p" x="807" y="280" text-anchor="middle">73 vs 54</text>
+<path class="sk red" d="M870 250 V205 H995"/>
+<g transform="translate(974 205)"><use href="#grieta"/></g>
+<text class="p red" x="932" y="235" text-anchor="middle">frase de más</text>
+<path class="sk" d="M995 205 V160 H1120"/>
+<text class="p" x="1057" y="190" text-anchor="middle">16 acciones</text>
+<path class="sk" d="M1120 160 H1160"/>
+<use href="#xh" x="557" y="340"/>
+<use href="#sudor" x="600" y="296"/>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Salió del reel de @quant.with.isamu (nº 2 de 15). Tus otros vídeos avisaban de que es un proyecto cliché, así que la idea fue añadir el examen.</p><p>Hubo dos tropiezos de verdad. «Inditex» se resolvía a la bolsa de Hannover, con precios rotos (curtosis de 1.301): se arregló con un filtro de calidad. Y algunas frases de la web afirmaban más de lo que da la muestra: se arreglaron con el margen binomial.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>peldaño 4</td><td>examen sobre datos que sí son campana → ≈90%</td><td><span class="ref">test_montecarlo.py:23</span></td></tr>
+<tr><td>peldaño 5 (roto)</td><td>Hannover: días congelados o saltos imposibles → se descarta la bolsa</td><td><span class="ref">montecarlo.py:78</span></td></tr>
+<tr><td>peldaño 7 (roto)</td><td>«exagera el riesgo» con 59 pruebas → margen ±7,6</td><td><span class="ref">docs/demo/index.html:338</span></td></tr>
+<tr><td>peldaño 8</td><td>validación en 16 acciones con Kupiec y KS</td><td><span class="ref">validar.py:14</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> Inditex en IXD1.HA (Hannover): curtosis 1.301,7. En ITX.MC (Madrid): 15,5. Misma empresa, datos de otra bolsa.</p>
+    </div>
+  </div>
+</section>
+<section class="lamina" id="l9">
+  <div class="num">LÁMINA 09 · AVERÍAS</div>
+  <h2>El cuadro de fusibles</h2>
+  <p class="idea">Cuando algo falla, el bichito abre el cuadro y mira con la lupa qué fusible saltó. Cada fusible es un síntoma con su sitio en el código.</p>
+  <svg class="dib" viewBox="230 110 800 310" role="img" aria-label="Cuadro eléctrico con cinco fusibles, uno fundido en rojo; el bichito lo mira con una lupa">
+
+<path class="sk w" d="M300 150 H900 V370 H300Z"/>
+<path class="sk w" d="M300 150 L250 170 V390 L300 370"/>
+<path class="sk w" d="M346 190 C346 176 374 176 374 190 V270 C374 284 346 284 346 270Z"/>
+<path class="sk fino" d="M360 180 V280 "/>
+<text class="p" x="360" y="318" text-anchor="middle"><tspan x="360">no la</tspan><tspan x="360" dy="22">encuentra</tspan></text>
+<path class="sk w" d="M466 190 C466 176 494 176 494 190 V270 C494 284 466 284 466 270Z"/>
+<path class="sk fino" d="M480 180 V280 "/>
+<text class="p" x="480" y="318" text-anchor="middle"><tspan x="480">tarda</tspan><tspan x="480" dy="22">mucho</tspan></text>
+<path class="sk w" d="M586 190 C586 176 614 176 614 190 V270 C614 284 586 284 586 270Z"/>
+<path class="sk fino" d="M600 180 V280 "/>
+<text class="p" x="600" y="318" text-anchor="middle"><tspan x="600">puerto</tspan><tspan x="600" dy="22">ocupado</tspan></text>
+<path class="sk w" d="M706 190 C706 176 734 176 734 190 V270 C734 284 706 284 706 270Z"/>
+<path class="sk fino" d="M720 180 V280 "/>
+<text class="p" x="720" y="318" text-anchor="middle"><tspan x="720">Yahoo</tspan><tspan x="720" dy="22">cambia</tspan></text>
+<path class="sk w red" d="M826 190 C826 176 854 176 854 190 V270 C854 284 826 284 826 270Z"/>
+<path class="sk fino red" d="M840 180 V214 M840 236 V280"/>
+<text class="p red" x="840" y="318" text-anchor="middle"><tspan x="840">cifras</tspan><tspan x="840" dy="22">raras</tspan></text>
+<g transform="translate(840 228)"><use href="#alarma"/></g>
+<path class="sk fino" d="M240 400 C500 404 800 398 1020 400"/>
+<use href="#xh" x="955" y="400"/>
+<g transform="translate(840 236)"><use href="#lupa"/></g>
+<path class="brazo" d="M931 350 C918 330 904 306 892 290"/><use href="#mano" x="892" y="290" transform="rotate(200 892 290)"/>
+  </svg>
+  <div class="ficha">
+    <div class="llano"><h3>En cristiano</h3><p>Cada fallo probable viene con la pista de dónde mirar. El más traicionero es «cifras raras»: no da ningún error, solo números absurdos, como una curtosis de 1.301 o un VaR enorme. Casi siempre es una bolsa secundaria con datos rotos.</p></div>
+    <div>
+      <table><thead><tr><th>En el dibujo</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+      <tbody><tr><td>no la encuentra</td><td>Yahoo no devuelve la bolsa principal → usa el ticker exacto (ITX.MC)</td><td><span class="ref">montecarlo.py:99</span></td></tr>
+<tr><td>tarda mucho</td><td>el examen bootstrap: 2.000 caminos × ~180 fechas → bajar N_EXAM</td><td><span class="ref">montecarlo.py:32</span></td></tr>
+<tr><td>puerto ocupado</td><td>8000 lo usa otra app → PORT=8005</td><td><span class="ref">server.py:47</span></td></tr>
+<tr><td>Yahoo cambia</td><td>yfinance cambia columnas o límites → todo pasa por load()</td><td><span class="ref">montecarlo.py:66</span></td></tr>
+<tr><td>cifras raras</td><td>filtro: >10% de días sin cambio o salto >70% → se descarta</td><td><span class="ref">montecarlo.py:78</span></td></tr></tbody></table>
+      <p class="dato"><b>Dato real:</b> Un aviso que no es error: los 404 de yfinance al probar «APPLE» como ticker. Se silencian en montecarlo.py:59 porque son parte de la búsqueda.</p>
+    </div>
+  </div>
+</section>
+<p class="cierre">Un modelo no es bueno porque acierte una vez:<br>es bueno si sus «90%» se cumplen el 90% de las veces.</p>
+</div>
+</body>
+</html>

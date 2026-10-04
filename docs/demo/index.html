@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monte Carlo Stock Simulator</title>
+<meta name="description" content="10.000 futuros posibles de una acción, y un examen que comprueba si el simulador acierta tanto como dice.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Terminal de análisis: pizarra oscura, retícula suiza, cifras tabulares.
+   Azul = GBM (la campana de libro). Ámbar = bootstrap (días reales). Blanco = la realidad. */
+:root{
+  --bg:#0A0D13; --panel:#10141C; --panel-2:#151A24; --line:#1E2532; --line-2:#2A3243;
+  --text:#E7EBF1; --muted:#8D97A8; --faint:#5D6779;
+  --gbm:#6FA8FF; --gbm-a:rgba(111,168,255,.16); --gbm-b:rgba(111,168,255,.30);
+  --boot:#F4AA3E; --boot-a:rgba(244,170,62,.14); --boot-b:rgba(244,170,62,.28);
+  --real:#FFFFFF; --bad:#F0625A; --good:#4FC48A;
+  --head:"Inter Tight",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif;
+  --r:12px; --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--body);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+a{color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+
+/* barra de mando */
+.bar{position:sticky;top:0;z-index:10;background:rgba(10,13,19,.78);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;gap:10px;align-items:center;padding-top:12px;padding-bottom:12px;flex-wrap:wrap}
+.brand{font:600 15px/1 var(--head);letter-spacing:-.01em;margin-right:auto;white-space:nowrap}
+.brand span{color:var(--muted);font-weight:500}
+form{display:flex;gap:8px;flex-wrap:wrap}
+input[type=text]{height:40px;width:200px;padding:0 12px;border-radius:8px;border:1px solid var(--line-2);background:var(--panel);color:var(--text);font:500 16px var(--body)}
+input[type=text]:focus{outline:2px solid var(--gbm);outline-offset:1px}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;height:40px}
+.seg button{border:0;background:transparent;color:var(--muted);font:500 14px var(--body);padding:0 12px;cursor:pointer;min-width:44px}
+.seg button[aria-pressed=true]{background:var(--panel-2);color:var(--text)}
+.go{height:40px;padding:0 16px;border:0;border-radius:8px;background:var(--text);color:var(--bg);font:600 14px var(--body);cursor:pointer;transition:transform .1s var(--ease)}
+.go:active,.seg button:active{transform:scale(.97)}
+.go:disabled{opacity:.5;cursor:progress}
+
+/* portada */
+.hero{padding:64px 0 28px}
+.hero h1{font:700 clamp(34px,6vw,64px)/1.02 var(--head);letter-spacing:-.03em;margin:0;max-width:16ch}
+.hero p{color:var(--muted);font-size:18px;max-width:62ch;margin:18px 0 0}
+.verdict{margin-top:32px;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.verdict div{background:var(--panel);padding:18px 18px 16px}
+.verdict b{display:block;font:600 clamp(22px,3vw,30px)/1.1 var(--head);letter-spacing:-.02em}
+.verdict small{display:block;color:var(--muted);font-size:13px;line-height:1.4;margin-top:6px}
+
+/* secciones */
+section{padding:56px 0;border-top:1px solid var(--line)}
+.step{color:var(--muted);font:500 14px var(--body)}
+h2{font:700 clamp(26px,3.6vw,38px)/1.1 var(--head);letter-spacing:-.025em;margin:6px 0 0;max-width:24ch}
+.lead{color:var(--muted);font-size:17px;max-width:64ch;margin:14px 0 0}
+.lead strong{color:var(--text);font-weight:600}
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:20px;margin-top:28px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.card h3{font:600 15px/1.3 var(--head);margin:0 0 10px;letter-spacing:-.01em}
+.card p{margin:0;color:var(--muted);font-size:14.5px}
+.card p+p{margin-top:10px}
+.stat{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.stat:last-child{border-bottom:0}
+.stat span{color:var(--muted)}
+.stat b{font-weight:600;white-space:nowrap}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font:500 11px var(--body);fill:var(--faint)}
+.axis line,.axis path{stroke:var(--line-2)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:13px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+.formula{margin-top:28px;padding:22px;overflow-x:auto;font-size:19px}
+.formula .katex{color:var(--text)}
+.where{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.where div{background:var(--panel-2);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--muted)}
+.where b{display:block;color:var(--text);font:600 18px var(--head);margin-bottom:2px}
+
+/* tabla de cifras */
+table{width:100%;border-collapse:collapse;margin-top:28px;font-size:15px}
+th,td{text-align:right;padding:14px 12px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font:600 13px var(--body);color:var(--muted)}
+td:first-child b{display:block;font-weight:600}
+td:first-child small{color:var(--muted);font-size:13px}
+td.n{font:600 18px var(--head);letter-spacing:-.01em}
+.gbm{color:var(--gbm)} .boot{color:var(--boot)}
+
+/* motor */
+.engine{display:inline-flex;margin-top:22px}
+.big{font:700 clamp(40px,7vw,72px)/1 var(--head);letter-spacing:-.03em}
+.callout{border-left:3px solid var(--boot);padding:2px 0 2px 16px;margin-top:22px;max-width:70ch;color:var(--muted)}
+.callout strong{color:var(--text)}
+ul.limits{margin:24px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+ul.limits li{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;color:var(--muted);font-size:14.5px}
+ul.limits b{display:block;color:var(--text);font:600 15px var(--head);margin-bottom:4px}
+footer{color:var(--faint);font-size:13px;padding:40px 0 60px;border-top:1px solid var(--line)}
+
+/* estados */
+.loading{position:fixed;inset:auto 0 24px;display:flex;justify-content:center;pointer-events:none;opacity:0;transition:opacity .2s}
+.loading.on{opacity:1}
+.loading span{background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:10px 16px;font-size:14px;color:var(--text)}
+.err{color:var(--bad);margin-top:14px;font-size:15px}
+#app{transition:opacity .3s var(--ease)}
+#app.dim{opacity:.35}
+.draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.4s var(--ease) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.fade{opacity:0;animation:fade .6s var(--ease) forwards}
+@keyframes fade{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.draw,.fade{animation:none;stroke-dashoffset:0;opacity:1}#app{transition:none}}
+
+@media (max-width:820px){
+  .grid2{grid-template-columns:1fr}
+  .verdict{grid-template-columns:repeat(2,1fr)}
+  .where{grid-template-columns:1fr}
+  ul.limits{grid-template-columns:1fr}
+  .brand{width:100%}
+  form{width:100%}
+  input[type=text]{flex:1;min-width:0;width:auto}
+}
+@media (max-width:480px){
+  .wrap{padding:0 16px}
+  input[type=text]{flex:1 1 100%}
+  form .seg{flex:1}
+  form .seg button{flex:1}
+  .hero{padding-top:40px}
+  th,td{padding:12px 6px}
+  td.n{font-size:16px}
+  .formula{font-size:15px;padding:16px}
+  /* las gráficas se encogen con la pantalla: el texto del eje se agranda en unidades del viewBox para quedar en ~10px */
+  #cone text,#term text,#strip text{font-size:26px}
+  #tails text{font-size:18px}
+  #calib text{font-size:15px}
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">Monte Carlo <span>· simulador que se examina</span></div>
+    <form id="f" autocomplete="off">
+      <input type="text" id="q" value="Apple" list="presets" aria-label="Empresa o ticker" placeholder="Apple, Repsol, ITX.MC…">
+      <datalist id="presets"><option value="Apple"><option value="S&amp;P 500"><option value="Inditex"><option value="Repsol"><option value="NVIDIA"></datalist>
+      <div class="seg" role="group" aria-label="Horizonte">
+        <button type="button" data-h="1m" aria-pressed="false">1 mes</button>
+        <button type="button" data-h="3m" aria-pressed="true">3 meses</button>
+        <button type="button" data-h="1y" aria-pressed="false">1 año</button>
+      </div>
+      <button class="go" id="go" type="submit">Simular</button>
+    </form>
+  </div>
+</header>
+
+<main id="app" class="wrap">
+  <div class="hero">
+    <h1 id="h1">10.000 futuros para una acción. Y un examen para el que los dibuja.</h1>
+    <p id="dek">Un simulador Monte Carlo no adivina el precio de mañana: dibuja todos los caminos posibles y dice "el 90% de las veces, el precio caerá aquí". Este, además, se pone a prueba contra 15 años de fechas reales (con 20 años de datos: los 5 primeros solo sirven para calibrar) para ver si esa promesa se cumple.</p>
+    <div class="err" id="err" hidden></div>
+    <div class="verdict" id="verdict" hidden></div>
+  </div>
+
+  <div id="body" hidden>
+    <section>
+      <div class="step">Paso 1 · Los datos</div>
+      <h2 id="s1t">La bolsa no es una campana</h2>
+      <p class="lead" id="s1l"></p>
+      <div class="grid2">
+        <div class="card"><svg id="tails" viewBox="0 0 640 300" role="img" aria-label="Histograma de rendimientos diarios frente a la campana normal"></svg>
+          <div class="legend"><span><i style="background:var(--text)"></i>Días reales</span><span><i style="background:var(--gbm)"></i>Lo que diría la campana</span></div></div>
+        <div class="card" id="tailstats"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="step">Paso 2 · La receta</div>
+      <h2>Dos maneras de inventar el futuro</h2>
+      <p class="lead">El primer motor, <strong class="gbm">GBM</strong>, es la fórmula de libro: el mismo modelo que hay debajo de Black–Scholes. Cada día sale de una campana con la media y la volatilidad de los últimos 5 años. El segundo, <strong class="boot">bootstrap</strong>, no inventa nada: copia y pega <strong>meses enteros reales</strong> del pasado en orden aleatorio, para que los crashes vuelvan a salir y lo hagan en racimo.</p>
+      <div class="card formula" id="formula"></div>
+      <div class="where" id="where"></div>
+    </section>
+
+    <section>
+      <div class="step">Paso 3 · El cono</div>
+      <h2 id="s3t">10.000 caminos posibles</h2>
+      <p class="lead" id="s3l"></p>
+      <div class="seg engine" role="group" aria-label="Motor">
+        <button type="button" data-e="both" aria-pressed="true">Los dos</button>
+        <button type="button" data-e="gbm" aria-pressed="false">GBM</button>
+        <button type="button" data-e="bootstrap" aria-pressed="false">Bootstrap</button>
+      </div>
+      <div class="card" style="margin-top:14px"><svg id="cone" viewBox="0 0 960 420" role="img" aria-label="Cono de precios simulados"></svg>
+        <div class="legend"><span><i style="background:var(--gbm-b)"></i>GBM: franja del 90% y del 50%</span><span><i style="background:var(--boot-b)"></i>Bootstrap: franja del 90% y del 50%</span><span><i style="background:var(--real)"></i>Precio de hoy</span></div></div>
+      <div class="card" style="margin-top:14px"><h3>Dónde acaban los 10.000 caminos</h3><svg id="term" viewBox="0 0 960 220" role="img" aria-label="Distribución del precio final"></svg></div>
+    </section>
+
+    <section>
+      <div class="step">Paso 4 · Las cifras</div>
+      <h2>Lo que un gestor de riesgos preguntaría</h2>
+      <p class="lead">Las mismas cinco preguntas con los dos motores. Si dan cosas parecidas, el resultado no depende de suponer una campana. Si no, la diferencia es justo el riesgo que la campana no ve.</p>
+      <table id="nums"></table>
+    </section>
+
+    <section>
+      <div class="step">Paso 5 · El examen</div>
+      <h2 id="s5t">¿Cumple lo que promete?</h2>
+      <p class="lead">Como al hombre del tiempo: no se le juzga por un día, sino por si llueve el 70% de las veces que dice "70%". Coloco el simulador en <strong id="norig"></strong> fechas del pasado, lo calibro con los 5 años anteriores a cada una y miro <strong>en qué punto de su abanico cayó el precio real</strong>.</p>
+      <div class="grid2">
+        <div class="card"><h3>Prometido frente a real</h3><svg id="calib" viewBox="0 0 520 440" role="img" aria-label="Curva de calibración"></svg>
+          <div class="legend"><span><i style="background:var(--gbm)"></i>GBM</span><span><i style="background:var(--boot)"></i>Bootstrap</span><span><i style="background:var(--line-2)"></i>Calibración perfecta</span></div></div>
+        <div class="card" id="examstats"></div>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Cada punto es una fecha del pasado. Fuera de la franja = el precio real se salió de lo previsto</h3><svg id="strip" viewBox="0 0 960 250" role="img" aria-label="Posición del precio real dentro de la simulación en cada fecha"></svg></div>
+      <p class="callout" id="caveat"></p>
+    </section>
+
+    <section>
+      <div class="step">Paso 6 · Lo que este modelo NO hace</div>
+      <h2>Dónde termina la herramienta</h2>
+      <ul class="limits">
+        <li><b>No predice la dirección</b>La deriva μ sale de la media de los últimos 5 años, y es casi todo ruido: unos años buenos inflan cualquier proyección. Lo útil del cono es su anchura, no hacia dónde apunta.</li>
+        <li><b>Volatilidad constante</b>Los dos motores suponen que el riesgo de los próximos meses se parece al de los últimos 5 años. Tras un crash no es así. Modelar eso es GARCH (Quantum #5).</li>
+        <li><b>El examen tiene poca muestra a 1 año</b>Las fechas de examen cubren ~15 años (de los 20 de datos, los 5 primeros solo calibran): a 1 año son unos 14 tramos que no se pisan entre sí. A 1 mes hay ~180 pruebas independientes: ese veredicto es el sólido.</li>
+        <li><b>Sesgo de superviviente</b>Solo se pueden simular empresas que siguen cotizando hoy. Las que quebraron no entran en el examen.</li>
+      </ul>
+    </section>
+  </div>
+</main>
+<footer><div class="wrap">Datos: Yahoo Finance (precios ajustados por dividendos y splits). 10.000 caminos por motor, semilla fija. Código: <code>montecarlo.py</code>. No es asesoramiento financiero.</div></footer>
+<div class="loading" id="loading"><span>Simulando 10.000 futuros y examinando 15 años…</span></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let D = null, H = "3m", E = "both";
+const HN = {"1m":"1 mes","3m":"3 meses","1y":"1 año"};
+const pct = (x, d=1) => (x*100).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d}) + "%";
+const num = (x, d=2) => x.toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
+const money = x => num(x) + " " + (D.currency || "");
+
+function el(tag, attrs={}, parent){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); if(parent) parent.appendChild(e); return e; }
+function scale(d0,d1,r0,r1){ return v => r0 + (v-d0)/(d1-d0)*(r1-r0); }
+function ticks(a,b,n=5){ const step=Math.pow(10,Math.floor(Math.log10((b-a)/n))); const m=[1,2,2.5,5,10].find(m=>(b-a)/(step*m)<=n)*step; const out=[]; for(let v=Math.ceil(a/m)*m; v<=b+1e-9; v+=m) out.push(+v.toFixed(10)); return out; }
+function line(svg, pts, attrs){ const d="M"+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L"); const p=el("path",{d,fill:"none",...attrs},svg); return p; }
+function drawIn(p, delay=0){ if(reduce) return; const L=p.getTotalLength(); p.style.setProperty("--len",L); p.style.animationDelay=delay+"ms"; p.classList.add("draw"); }
+function area(svg, top, bot, fill){ const pts=top.concat(bot.slice().reverse()); return el("path",{d:"M"+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L")+"Z",fill,class:"fade"},svg); }
+
+// ---------- paso 1: colas ----------
+function drawTails(){
+  const s=$("#tails"); s.innerHTML=""; const h=D.tails.hist, W=640,Hh=300,L=44,R=10,T=10,B=34;
+  const x=scale(-6,6,L,W-R), ymax=Math.log10(Math.max(...h.real,...h.normal)+1);
+  const y=v=>scale(0,ymax,Hh-B,T)(Math.log10(v+1));
+  const g=el("g",{class:"axis"},s);
+  [1,10,100,1000].filter(v=>Math.log10(v+1)<=ymax).forEach(v=>{ el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":"2 4"},g); el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},s).textContent=v.toLocaleString("es-ES"); });
+  [-6,-4,-2,0,2,4,6].forEach(v=>{ el("text",{x:x(v),y:Hh-12,"text-anchor":"middle"},s).textContent=(v>0?"+":"")+v+"σ"; });
+  const bw=(x(h.mid[1])-x(h.mid[0]))-2;
+  h.mid.forEach((m,i)=>{ if(!h.real[i]) return; const tail=Math.abs(m)>=4; el("rect",{x:x(m)-bw/2,y:y(h.real[i]),width:bw,height:Hh-B-y(h.real[i]),fill:tail?"var(--bad)":"var(--text)",opacity:tail?1:.75,rx:1.5,class:"fade",style:`animation-delay:${i*12}ms`},s); });
+  drawIn(line(s,h.mid.map((m,i)=>[x(m),y(h.normal[i])]),{stroke:"var(--gbm)","stroke-width":2.5}),200);
+  el("text",{x:W-R,y:T+12,"text-anchor":"end"},s).textContent="nº de días (escala log)";
+  const t=D.tails;
+  $("#s1l").innerHTML=`${D.name} lleva <strong>${t.n_days.toLocaleString("es-ES")} días</strong> de historia en estos datos. La mayoría son tranquilos, pero los días extremos aparecen <strong>${Math.round(t.crash_days_real/Math.max(t.crash_days_normal,0.01)).toLocaleString("es-ES")} veces más</strong> de lo que permitiría una campana normal. En rojo, los días de más de 4 desviaciones.`;
+  $("#tailstats").innerHTML=`<h3>La campana contra los datos</h3>
+   <div class="stat"><span>Días de más de ±4σ, reales</span><b style="color:var(--bad)">${t.crash_days_real}</b></div>
+   <div class="stat"><span>Los que esperaría la campana</span><b>${num(t.crash_days_normal)}</b></div>
+   <div class="stat"><span>Peor día de la serie</span><b>${pct(t.worst_day)}</b></div>
+   <div class="stat"><span>Curtosis en exceso (campana = 0)</span><b>${num(t.excess_kurtosis,1)}</b></div>
+   <p style="margin-top:12px">Curtosis alta significa que la distribución tiene <strong style="color:var(--text)">un pico alto y colas gordas</strong>: muchos días aburridos y unos pocos brutales. Con la misma volatilidad, la campana reparte el riesgo de forma demasiado uniforme.</p>`;
+}
+
+// ---------- paso 2: fórmula ----------
+function drawFormula(){
+  const T=D.days/252, mu=D.mu_annual, sg=D.sigma_annual, n=(x,d=2)=>num(x,d).replace(/,/g,"{,}");
+  const tex=`S_T = S_0\\,\\exp\\!\\Big(\\big(\\mu-\\tfrac{\\sigma^2}{2}\\big)T+\\sigma\\sqrt{T}\\,Z\\Big) \\;\\Rightarrow\\; ${n(D.s0)}\\cdot\\exp\\!\\Big(\\big(${n(mu,3)}-\\tfrac{${n(sg,3)}^2}{2}\\big)\\cdot ${n(T,3)}+${n(sg,3)}\\sqrt{${n(T,3)}}\\,Z\\Big)`;
+  const f=$("#formula");
+  if(window.katex) katex.render(tex,f,{displayMode:true,throwOnError:false}); else f.textContent=tex;
+  $("#where").innerHTML=`<div><b>${num(D.s0)} ${D.currency}</b>S₀: precio de cierre del ${D.last_date}</div>
+   <div><b>μ = ${pct(mu)} · σ = ${pct(sg)}</b>Deriva y volatilidad anuales, medidas en los últimos 5 años</div>
+   <div><b>Z ~ N(0,1)</b>El azar: un número de la campana estándar, sorteado 10.000 veces por día</div>`;
+}
+
+// ---------- paso 3: cono ----------
+function drawCone(){
+  const s=$("#cone"); s.innerHTML=""; const W=960,Hh=420,L=64,R=16,T=14,B=34, n=D.days;
+  const engines=E==="both"?["gbm","bootstrap"]:[E];
+  let lo=Infinity,hi=-Infinity; engines.forEach(e=>{ lo=Math.min(lo,...D.sim[e].bands["5"]); hi=Math.max(hi,...D.sim[e].bands["95"]); });
+  const pad=(hi-lo)*.08; lo-=pad; hi+=pad;
+  const x=scale(0,n,L,W-R), y=scale(lo,hi,Hh-B,T), g=el("g",{class:"axis"},s);
+  ticks(lo,hi,5).forEach(v=>{ el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":"2 4"},g); el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},s).textContent=num(v,v<100?1:0); });
+  const xt=n===21?[0,5,10,15,21]:n===63?[0,21,42,63]:[0,63,126,189,252];
+  xt.forEach(v=>el("text",{x:x(v),y:Hh-10,"text-anchor":"middle"},s).textContent=v===0?"hoy":"+"+v+" días");
+  engines.forEach(e=>{
+    const b=D.sim[e].bands, P=k=>b[k].map((v,i)=>[x(i),y(v)]), c=e==="gbm"?"gbm":"boot";
+    area(s,P("95"),P("5"),`var(--${c}-a)`); area(s,P("75"),P("25"),`var(--${c}-a)`);
+  });
+  engines.forEach((e,k)=>{
+    const c=e==="gbm"?"var(--gbm)":"var(--boot)";
+    D.sim[e].samples.slice(0,E==="both"?14:28).forEach((p,i)=>{ const st=Math.max(1,Math.floor(p.length/120)); drawIn(line(s,p.filter((_,j)=>j%st===0||j===p.length-1).map((v,j,arr)=>[x(Math.min(j*st,n)),y(v)]),{stroke:c,"stroke-width":1,opacity:.45}),i*40+k*200); });
+    drawIn(line(s,D.sim[e].bands["50"].map((v,i)=>[x(i),y(v)]),{stroke:c,"stroke-width":2.5}),500);
+  });
+  el("line",{x1:L,x2:W-R,y1:y(D.s0),y2:y(D.s0),stroke:"var(--real)","stroke-width":1.2,"stroke-dasharray":"6 5",opacity:.8},s);
+  // histograma final
+  const t=$("#term"); t.innerHTML=""; const ed=D.sim.hist_edges, W2=960,H2=220,B2=30;
+  const xs=scale(ed[0],ed[ed.length-1],L,W2-R), m=Math.max(...engines.flatMap(e=>D.sim[e].hist)), ys=scale(0,m,H2-B2,8);
+  ticks(ed[0],ed[ed.length-1],6).forEach(v=>el("text",{x:xs(v),y:H2-8,"text-anchor":"middle"},t).textContent=num(v,v<100?1:0));
+  engines.forEach(e=>{ const c=e==="gbm"?"var(--gbm)":"var(--boot)"; const pts=[[xs(ed[0]),ys(0)]]; D.sim[e].hist.forEach((h,i)=>{pts.push([xs(ed[i]),ys(h)],[xs(ed[i+1]),ys(h)]);}); pts.push([xs(ed[ed.length-1]),ys(0)]);
+    el("path",{d:"M"+pts.map(p=>p.join(",")).join("L")+"Z",fill:e==="gbm"?"var(--gbm-a)":"var(--boot-a)",stroke:c,"stroke-width":1.5,class:"fade"},t); });
+  el("line",{x1:xs(D.s0),x2:xs(D.s0),y1:8,y2:H2-B2,stroke:"var(--real)","stroke-dasharray":"4 4"},t);
+  el("text",{x:xs(D.s0)+6,y:20},t).textContent="hoy: "+num(D.s0);
+}
+
+// ---------- paso 4: cifras ----------
+function drawNums(){
+  const g=D.sim.gbm,b=D.sim.bootstrap, h=HN[D.horizon];
+  const rows=[
+    ["Probabilidad de acabar ganando",`De los 10.000 futuros, cuántos terminan por encima de ${num(D.s0)} dentro de ${h}`,pct(g.p_up),pct(b.p_up)],
+    ["Precio mediano",`La mitad de los caminos acaba por encima y la otra mitad por debajo`,num(g.median),num(b.median)],
+    ["VaR 95%",`La pérdida que solo se supera en 1 de cada 20 futuros`,pct(g.var95),pct(b.var95)],
+    ["Expected Shortfall 95%",`Cuando sí se supera, lo que se pierde de media. Es la cifra que pide Basilea III`,pct(g.es95),pct(b.es95)],
+    ["Caída máxima típica",`La mayor bajada desde un pico por el camino, en el futuro mediano`,pct(g.max_dd_median),pct(b.max_dd_median)],
+  ];
+  $("#nums").innerHTML=`<tr><th>Pregunta · ${h}</th><th class="gbm">GBM</th><th class="boot">Bootstrap</th></tr>`+rows.map(r=>`<tr><td><b>${r[0]}</b><small>${r[1]}</small></td><td class="n gbm">${r[2]}</td><td class="n boot">${r[3]}</td></tr>`).join("");
+}
+
+// ---------- paso 5: examen ----------
+function drawExam(){
+  const ex=D.exam, Ls=Object.keys(ex.gbm.coverage).map(Number).sort((a,b)=>a-b);
+  $("#norig").textContent=ex.origins.toLocaleString("es-ES");
+  const s=$("#calib"); s.innerHTML=""; const W=520,Hh=440,L=48,R=14,T=12,B=40, x=scale(0,1,L,W-R), y=scale(0,1,Hh-B,T), g=el("g",{class:"axis"},s);
+  [0,.25,.5,.75,1].forEach(v=>{ el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":"2 4"},g); el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},s).textContent=pct(v,0); el("text",{x:x(v),y:Hh-20,"text-anchor":"middle"},s).textContent=pct(v,0); });
+  el("text",{x:(L+W-R)/2,y:Hh-2,"text-anchor":"middle"},s).textContent="lo que el simulador promete (franja central)";
+  el("text",{x:14,y:(T+Hh-B)/2,transform:`rotate(-90 14 ${(T+Hh-B)/2})`,"text-anchor":"middle"},s).textContent="veces que el precio real cayó dentro";
+  el("line",{x1:x(0),y1:y(0),x2:x(1),y2:y(1),stroke:"var(--line-2)","stroke-width":2,"stroke-dasharray":"6 5"},s);
+  ["gbm","bootstrap"].forEach((e,k)=>{ const c=e==="gbm"?"var(--gbm)":"var(--boot)"; const pts=[[x(0),y(0)]].concat(Ls.map(L=>[x(L),y(ex[e].coverage[L])]));
+    drawIn(line(s,pts,{stroke:c,"stroke-width":2.5}),k*250); pts.slice(1).forEach(p=>el("circle",{cx:p[0],cy:p[1],r:4,fill:c,class:"fade",style:`animation-delay:${600+k*250}ms`},s)); });
+  const c9=e=>ex[e].coverage["0.9"], c5=e=>ex[e].coverage["0.5"];
+  const moe=1.96*Math.sqrt(.9*.1/ex.independent);   // margen de suerte (binomial, 95%) con las pruebas independientes
+  const verdict=e=>{ const d=c9(e)-.9; return Math.abs(d)<=moe?"<span style='color:var(--good)'>cumple</span>":d<0?"<span style='color:var(--bad)'>se confía demasiado</span>":"<span style='color:var(--boot)'>exagera el riesgo</span>"; };
+  $("#examstats").innerHTML=`<h3>El veredicto a ${HN[D.horizon]}</h3>
+   <div class="stat"><span>GBM: dijo 90%, acertó</span><b class="gbm">${pct(c9("gbm"))}</b></div>
+   <div class="stat"><span>Bootstrap: dijo 90%, acertó</span><b class="boot">${pct(c9("bootstrap"))}</b></div>
+   <div class="stat"><span>GBM: dijo 50%, acertó</span><b class="gbm">${pct(c5("gbm"))}</b></div>
+   <div class="stat"><span>Bootstrap: dijo 50%, acertó</span><b class="boot">${pct(c5("bootstrap"))}</b></div>
+   <div class="stat"><span>Salidas por abajo (peor de lo previsto)</span><b><span class="gbm">${pct(ex.gbm.miss_low)}</span> · <span class="boot">${pct(ex.bootstrap.miss_low)}</span></b></div>
+   <p style="margin-top:12px">Franja del 90%: el GBM ${verdict("gbm")} y el bootstrap ${verdict("bootstrap")}. Con ${num(ex.independent,0)} pruebas independientes, la suerte sola mueve el resultado ±${num(moe*100,1)} puntos, y solo cuenta como fallo lo que se sale de ese margen. Por encima de la diagonal, el simulador pinta un futuro más incierto de lo que fue. Por debajo, se lleva sorpresas.</p>`;
+  // franja temporal de PITs
+  const t=$("#strip"); t.innerHTML=""; const W2=960,H2=250,L2=140,Tb=10, rowH=(H2-36)/2, dates=ex.dates, n=dates.length, xs=scale(0,n-1,L2,W2-14);
+  ["gbm","bootstrap"].forEach((e,k)=>{ const top=Tb+k*(rowH+6), ys=scale(0,1,top+rowH,top), c=e==="gbm"?"var(--gbm)":"var(--boot)";
+    el("rect",{x:L2,y:ys(.95),width:W2-14-L2,height:ys(.05)-ys(.95),fill:e==="gbm"?"var(--gbm-a)":"var(--boot-a)",rx:4},t);
+    el("text",{x:0,y:top+rowH/2+4},t).textContent=e==="gbm"?"GBM":"Bootstrap";
+    ex[e].pit.forEach((p,i)=>{ const out=p<.05||p>.95; el("circle",{cx:xs(i),cy:ys(p),r:out?3.6:2.4,fill:out?"var(--bad)":c,opacity:out?1:.8,class:"fade",style:`animation-delay:${Math.min(i*6,900)}ms`},t); }); });
+  const yr=[...new Set(dates.map(d=>d.slice(0,4)))]; const every=Math.ceil(yr.length/8);
+  yr.filter((_,i)=>i%every===0).forEach(Y=>{ const i=dates.findIndex(d=>d.startsWith(Y)); el("text",{x:xs(i),y:H2-6,"text-anchor":"middle"},t).textContent=Y; });
+  $("#caveat").innerHTML=`<strong>Ojo con la muestra.</strong> Las ${ex.origins} fechas están separadas por un mes, pero cada prueba mira ${HN[D.horizon]} hacia delante, así que se pisan entre sí. Equivalen a unas <strong>${num(ex.independent,0)} pruebas independientes</strong>. ${ex.independent>=150?"Es una muestra sólida: la suerte solo explica unos ±4 puntos en la franja del 90% y ±7 en la del 50%.":ex.independent<40?"Es poco para un veredicto firme: mira el horizonte de 1 mes, donde la prueba es sólida.":"Para el veredicto más firme, compáralo con el horizonte de 1 mes (~180 pruebas independientes)."}`;
+}
+
+function drawHero(){
+  const g=D.sim.gbm,b=D.sim.bootstrap, h=HN[D.horizon], ex=D.exam;
+  $("#h1").textContent=`${D.name}: ${Math.round(b.p_up*10)} de cada 10 futuros acaban en verde dentro de ${h} (bootstrap).`;
+  $("#dek").innerHTML=`10.000 caminos simulados con dos motores desde ${num(D.s0)} ${D.currency} (cierre del ${D.last_date}${D.resolved_from?`, cotización ${D.symbol}`:""}). Después, el examen: ${ex.origins} fechas reales desde ${ex.dates[0].slice(0,4)} para ver si la franja del 90% atrapa de verdad el 90% de las veces.`;
+  const v=$("#verdict"); v.hidden=false;
+  v.innerHTML=`<div><b>${num(b.median)}</b><small>Precio mediano en ${h} (bootstrap)</small></div>
+   <div><b>${pct(b.es95)}</b><small>Pérdida media en el peor 5% de futuros (bootstrap)</small></div>
+   <div><b class="gbm">${pct(ex.gbm.coverage["0.9"],0)}</b><small>Aciertos del GBM cuando promete 90%</small></div>
+   <div><b class="boot">${pct(ex.bootstrap.coverage["0.9"],0)}</b><small>Aciertos del bootstrap cuando promete 90%</small></div>`;
+  $("#s3l").innerHTML=`Cada línea fina es un futuro posible de ${h}. Las zonas sombreadas recogen el 90% y el 50% central de los 10.000 caminos de cada motor, y la línea gruesa es la mediana. <strong>Lo importante es la anchura del cono</strong>, que mide el riesgo, no hacia dónde apunta.`;
+}
+
+function render(){ drawHero(); drawTails(); drawFormula(); drawCone(); drawNums(); drawExam(); $("#body").hidden=false; }
+
+// Con servidor (python3 server.py) vale cualquier empresa. En la demo pública (GitHub Pages, sin Python)
+// se leen resultados precalculados en data/: ponytail: 5 empresas fijas, cualquier otra pide ejecutarlo en local.
+const PRESET={apple:"apple",aapl:"apple",spy:"spy","s&p":"spy","s&p 500":"spy",sp500:"spy",inditex:"inditex","itx.mc":"inditex",repsol:"repsol","rep.mc":"repsol",nvidia:"nvidia",nvda:"nvidia"};
+async function load(q){
+  try{
+    const r=await fetch(`api/sim?q=${encodeURIComponent(q)}&h=${H}`);
+    if(r.headers.get("content-type")?.includes("json")){ const d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||"Error del servidor"); return d; }
+  }catch(e){ if(!(e instanceof TypeError)) throw e; }
+  const k=PRESET[q.toLowerCase()];
+  if(!k) throw new Error("En la demo pública hay Apple, S&P 500, Inditex, Repsol y NVIDIA. Para cualquier otra empresa, descarga el código y ejecuta python3 server.py.");
+  const r=await fetch(`data/${k}-${H}.json`); if(!r.ok) throw new Error("No se pudo cargar la demo."); return r.json();
+}
+let SEQ=0;
+async function run(){
+  const q=$("#q").value.trim(); if(!q) return;
+  $("#go").disabled=true; $("#loading").classList.add("on"); $("#app").classList.add("dim"); $("#err").hidden=true;
+  try{
+    const my=++SEQ, d=await load(q); if(my!==SEQ) return;   // una respuesta vieja no pisa a la nueva
+    D=d; render();
+  }catch(e){ $("#err").textContent=e.message; $("#err").hidden=false; }
+  finally{ $("#go").disabled=false; $("#loading").classList.remove("on"); $("#app").classList.remove("dim"); }
+}
+
+$("#f").addEventListener("submit",e=>{e.preventDefault();run();});
+document.querySelectorAll("[data-h]").forEach(b=>b.addEventListener("click",()=>{ H=b.dataset.h; document.querySelectorAll("[data-h]").forEach(x=>x.setAttribute("aria-pressed",x===b)); run(); }));
+document.querySelectorAll("[data-e]").forEach(b=>b.addEventListener("click",()=>{ E=b.dataset.e; document.querySelectorAll("[data-e]").forEach(x=>x.setAttribute("aria-pressed",x===b)); if(D) drawCone(); }));
+addEventListener("DOMContentLoaded",run);
+</script>
+</body>
+</html>
