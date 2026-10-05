@@ -5,73 +5,589 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Monte Carlo Stock Simulator</title>
 <meta name="description" content="10,000 possible futures for a stock, and an exam that checks whether the simulator keeps its promises.">
-<meta property="og:title" content="Monte Carlo Stock Simulator — a simulator that grades itself">
+<meta property="og:title" content="Monte Carlo Stock Simulator: a simulator that grades itself">
 <meta property="og:description" content="GBM vs block bootstrap, backtested on 15 years of real dates. On the S&P 500 the textbook model's 50% band caught reality 73% of the time.">
 <meta property="og:image" content="https://nachosanbenito.com/monte-carlo-simulator/poster.jpg">
 <meta property="og:type" content="website">
+<meta name="theme-color" content="#2a2738">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%232a2738%22/%3E%3Cpath d=%22M3 8 13 3M3 8h10M3 8l10 5%22 stroke=%22%233fb8a9%22 stroke-width=%221.6%22/%3E%3C/svg%3E">
+<script>document.documentElement.classList.add('js')</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0A0D13;--panel:#10141C;--line:#1E2532;--line-2:#2A3243;--text:#E7EBF1;--muted:#8D97A8;--gbm:#6FA8FF;--boot:#F4AA3E;--bad:#F0625A;
-  --head:"Inter Tight",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif}
+:root{
+  --night:#2a2738;--night-2:#22202f;--on-night:#f4f3f8;--on-night-2:#b4b1c4;
+  --ink:#16151d;--muted:#545a66;--line:#d7dae0;--stage:#fff;
+  --gbm:#2f7fd0;--gbm-l:#64bdff;--boot:#e07a1f;--boot-t:#b25a0c;
+  --in50:#3fb8a9;--in90:#d6b23e;--out:#d0507a;--bad:#c0446a;
+  --t-blue:#e1eef9;--t-teal:#dbf1eb;--t-rose:#f6e3ea;
+  --r:6px;--ease:cubic-bezier(.22,1,.36,1);
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--body);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-.wrap{max-width:980px;margin:0 auto;padding:0 20px}
-header{padding:72px 0 28px}
-.kick{color:var(--muted);font:500 14px var(--body)}
-h1{font:700 clamp(40px,7vw,76px)/1 var(--head);letter-spacing:-.03em;margin:10px 0 0}
-.dek{color:var(--muted);font-size:19px;max-width:60ch;margin:18px 0 0}
-.dek strong{color:var(--text);font-weight:600}
-video{display:block;width:100%;border-radius:12px;border:1px solid var(--line);background:#fff;margin-top:32px}
-.cap{color:var(--muted);font-size:13px;margin-top:8px}
-.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
-.cta a{display:inline-flex;align-items:center;height:46px;padding:0 18px;border-radius:8px;border:1px solid var(--line-2);color:var(--text);text-decoration:none;font:600 15px var(--body);transition:transform .1s ease-out,background .2s}
-.cta a:first-child{background:var(--text);color:var(--bg);border-color:var(--text)}
-.cta a:hover{background:var(--panel)} .cta a:first-child:hover{background:#fff}
-.cta a:active{transform:scale(.97)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:48px}
-.stats div{background:var(--panel);padding:20px}
-.stats b{display:block;font:700 clamp(28px,4vw,40px)/1 var(--head);letter-spacing:-.02em}
-.stats small{display:block;color:var(--muted);font-size:14px;line-height:1.45;margin-top:10px}
-section{padding:48px 0;border-top:1px solid var(--line);margin-top:48px}
-h2{font:700 28px/1.15 var(--head);letter-spacing:-.02em;margin:0}
-p{max-width:68ch;color:var(--muted)} p strong{color:var(--text);font-weight:600}
-.gbm{color:var(--gbm)} .boot{color:var(--boot)} .bad{color:var(--bad)}
-footer{color:#5D6779;font-size:13px;padding:32px 0 60px;border-top:1px solid var(--line)}
-footer a{color:var(--muted)}
-@media (max-width:700px){.stats{grid-template-columns:1fr}header{padding-top:44px}}
-@media (prefers-reduced-motion:reduce){.cta a{transition:none}}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--stage);color:var(--ink);font:400 17px/1.55 "Assistant",system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+a{color:inherit}
+h1,h2,h3{font-weight:600;letter-spacing:-.015em;margin:0}
+b,strong{font-weight:700}
+.gbm{color:var(--gbm)} .boot{color:var(--boot-t)}
+
+/* hero: night, the fan */
+.hero{background:var(--night);color:var(--on-night);min-height:100svh;display:grid;grid-template-columns:minmax(320px,5fr) 7fr;grid-template-rows:auto 1fr;column-gap:24px;padding:0 clamp(16px,4vw,56px) 28px;overflow:hidden}
+.top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;height:68px;font-size:15px;color:var(--on-night-2)}
+.top a{text-decoration:none;color:var(--on-night)}
+.top a:hover{text-decoration:underline}
+.hero-text{align-self:center;padding-bottom:6vh;max-width:520px}
+.eyebrow{font-size:17px;color:var(--on-night-2);margin:0 0 14px}
+.hero h1{font-size:clamp(40px,5.2vw,74px);line-height:1;letter-spacing:-.03em}
+.hero h1 .n50{color:var(--in50)} .hero h1 .n73{color:#e0628a}
+.lead{font-size:clamp(18px,1.5vw,21px);font-weight:300;line-height:1.5;color:var(--on-night);margin:22px 0 0}
+.lead b{font-weight:600}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 18px;border-radius:var(--r);border:1px solid rgba(255,255,255,.28);text-decoration:none;font:600 16px "Assistant",sans-serif;color:var(--on-night);transition:background-color .2s,border-color .2s,transform .12s var(--ease)}
+.btn:hover{border-color:rgba(255,255,255,.6)}
+.btn.solid{background:var(--on-night);color:var(--night);border-color:var(--on-night)}
+.btn.solid:hover{background:#fff}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible,a:focus-visible,video:focus-visible{outline:2px solid var(--in50);outline-offset:3px}
+.fan{margin:0;align-self:stretch;display:flex;flex-direction:column;min-height:420px}
+.fan canvas{flex:1;width:100%;min-height:0;display:block}
+.fan figcaption{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;font-size:14px;color:var(--on-night-2);padding-top:10px}
+.fan figcaption .count{color:var(--on-night);font-size:15px}
+.fan figcaption .count b{font-size:22px;letter-spacing:-.01em}
+.key{display:inline-flex;align-items:center;gap:6px}
+.key i{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* film: second screen, split like a chapter */
+.split{display:grid;grid-template-columns:2fr 3fr;min-height:100svh}
+.panel{padding:clamp(32px,5vw,72px) clamp(16px,4vw,56px);display:flex;flex-direction:column;justify-content:center}
+.film{min-height:auto}
+.film .panel{background:var(--t-blue);padding-top:96px;padding-bottom:96px}
+.promo figcaption{font-size:15px;color:var(--muted);margin-top:10px}
+.chap{font-size:16px;color:var(--muted);margin:0 0 10px}
+h2{font-size:clamp(30px,3vw,42px);line-height:1.08}
+.panel p{max-width:46ch;margin:16px 0 0}
+.panel p.small{font-size:15px;color:var(--muted)}
+.film .stage{display:flex;align-items:center;justify-content:center;padding:clamp(16px,4vw,56px)}
+.film video{width:100%;height:auto;aspect-ratio:16/9;display:block;border-radius:var(--r);border:1px solid var(--line);background:#fff;box-shadow:0 18px 50px -24px rgba(42,39,56,.35)}
+.promo{position:relative;width:100%;margin:0}
+.play{position:absolute;left:0;top:0;width:100%;aspect-ratio:16/9;display:grid;place-items:center;padding:0;border:0;border-radius:var(--r);background:linear-gradient(rgb(22 21 29 / 0) 55%,rgb(22 21 29 / .55));color:#fff;font-family:inherit;cursor:pointer}
+.play i{display:grid;place-items:center;width:84px;height:58px;border-radius:16px;background:rgb(23 23 23 / .82);box-shadow:0 6px 24px rgb(0 0 0 / .35)}
+.play i svg{width:26px;height:26px;margin-left:2px}
+.play span{position:absolute;left:20px;bottom:18px;font-size:16px;font-weight:600;line-height:1.2;text-shadow:0 1px 8px rgb(0 0 0 / .6)}
+.play small{position:absolute;right:16px;bottom:16px;padding:3px 7px;border-radius:6px;background:rgb(0 0 0 / .78);color:#fff;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.play:hover i,.play:focus-visible i{background:#ff0033}
+.play:focus-visible{outline:2px solid var(--gbm);outline-offset:4px}
+html:not(.js) .play{display:none}
+@media (prefers-reduced-motion:no-preference){.play i{transition:transform .3s var(--ease),background-color .15s}.play:hover i{transform:scale(1.06)}}
+.film .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.film .btn,.end .btn{color:var(--ink);border-color:rgba(22,21,29,.25)}
+.film .btn:hover,.end .btn:hover{border-color:var(--ink)}
+.film .btn.solid,.end .btn.solid{background:var(--night);color:var(--on-night);border-color:var(--night)}
+.film .btn.solid:hover,.end .btn.solid:hover{background:#3a3650}
+
+/* story: sticky stage + steps */
+.story{display:grid;grid-template-columns:2fr 3fr;position:relative}
+.stage-wrap{grid-column:2;grid-row:1;position:sticky;top:0;height:100svh;display:flex;flex-direction:column;justify-content:center;padding:24px clamp(16px,3vw,48px);background:var(--stage)}
+.stage-wrap svg{width:100%;height:auto;max-height:calc(100svh - 120px);display:block;overflow:visible}
+.stage-cap{font-size:14px;color:var(--muted);margin:10px 0 0;min-height:2.6em;max-width:60ch}
+.steps{grid-column:1;grid-row:1;background:var(--t-blue);transition:background-color .6s var(--ease)}
+.steps[data-tint=teal]{background:var(--t-teal)} .steps[data-tint=rose]{background:var(--t-rose)}
+.step{min-height:100svh;padding:clamp(32px,5vw,72px) clamp(16px,4vw,56px);display:flex;flex-direction:column;justify-content:center}
+.step p{max-width:44ch;margin:14px 0 0}
+.formula{margin:20px 0 0;padding:16px 18px;background:rgba(255,255,255,.75);border-left:3px solid var(--gbm);border-radius:0 var(--r) var(--r) 0;font-size:clamp(17px,1.5vw,21px);line-height:1.4;max-width:100%;overflow-x:auto;white-space:nowrap}
+.formula.b{border-left-color:var(--boot)}
+.formula var{font-style:normal;font-weight:600}
+.formula sub,.formula sup{font-size:.7em}
+.nums{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:4px 28px;margin:18px 0 0}
+.nums div{display:flex;flex-direction:column}
+.nums b{font-size:26px;letter-spacing:-.01em;line-height:1.1}
+.nums small{font-size:14px;color:var(--muted)}
+
+/* stage svg */
+.layer{opacity:0;transition:opacity .45s var(--ease);pointer-events:none}
+.layer.on{opacity:1}
+.ax{stroke:#16151d;stroke-width:1}
+.grid{stroke:#e6e8ec;stroke-width:1}
+.tick{font:400 13px "Assistant",sans-serif;fill:#545a66}
+.lab{font:600 14px "Assistant",sans-serif;fill:#16151d}
+.lab.m{font-weight:400;fill:#545a66}
+.big{font:700 34px "Assistant",sans-serif;letter-spacing:-.02em}
+.draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.1s var(--ease)}
+.on .draw{stroke-dashoffset:0}
+.grow{transform:scaleX(0);transform-box:fill-box;transform-origin:left center;transition:transform .8s var(--ease)}
+.growy{transform:scaleY(0);transform-box:fill-box;transform-origin:center bottom;transition:transform .7s var(--ease)}
+.on .grow,.on .growy{transform:none}
+.drop{transform:translateY(-420px);opacity:0;transition:transform .7s cubic-bezier(.3,1.25,.5,1),opacity .2s}
+.on .drop{transform:none;opacity:1}
+.fade{opacity:0;transition:opacity .5s var(--ease)}
+.on .fade{opacity:1}
+
+/* proof + limits */
+.wrap{max-width:1080px;margin:0 auto;padding:0 clamp(16px,4vw,56px)}
+.proof{padding:clamp(64px,9vw,120px) 0}
+.proof .head{display:grid;grid-template-columns:2fr 3fr;gap:24px 48px;align-items:end}
+.proof .head p{margin:0;color:var(--muted);max-width:52ch}
+.ks{display:grid;gap:14px;margin-top:36px}
+.ks div{display:grid;grid-template-columns:140px auto 1fr;align-items:center;gap:8px 16px}
+.ks .sq{display:grid;grid-template-columns:repeat(16,18px);gap:5px}
+.ks .sq i{width:18px;height:18px;border-radius:3px;background:#cfd8d4}
+.ks .sq i.f{background:var(--bad)}
+.ks b{font-size:18px} .ks small{font-size:15px;color:var(--muted)}
+@media (max-width:860px){.ks div{grid-template-columns:1fr}.ks .sq{grid-template-columns:repeat(16,1fr);gap:4px}.ks .sq i{width:auto;aspect-ratio:1;height:auto}}
+.tbl{width:100%;border-collapse:collapse;margin-top:36px;font-size:16px}
+.tbl caption{text-align:left;font-size:15px;color:var(--muted);padding-bottom:10px}
+.tbl th,.tbl td{text-align:right;padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th:first-child,.tbl td:first-child{text-align:left;padding-left:0}
+.tbl thead th{font-weight:600;font-size:14px;color:var(--muted);vertical-align:bottom;white-space:normal}
+.tbl td{font-weight:600}
+.tbl td b{font-size:inherit;font-weight:600}
+.tbl tr.g td:first-child{color:var(--gbm);font-weight:700}
+.tbl tr.bt td:first-child{color:var(--boot-t);font-weight:700}
+.miss{color:var(--bad);font-weight:700}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.note{font-size:15px;color:var(--muted);max-width:70ch;margin:16px 0 0}
+.limits{background:var(--night);color:var(--on-night);padding:clamp(64px,9vw,120px) 0}
+.limits h2{max-width:20ch}
+.limits .lead{color:var(--on-night-2);max-width:56ch}
+.lims{display:grid;grid-template-columns:repeat(2,1fr);gap:0 48px;margin-top:40px}
+.lims div{border-top:1px solid rgba(255,255,255,.16);padding:20px 0 28px}
+.lims h3{font-size:21px}
+.lims p{color:var(--on-night-2);margin:8px 0 0;max-width:46ch}
+.end{padding:clamp(56px,8vw,96px) 0 24px;background:var(--t-blue)}
+.end .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.end p{max-width:60ch;color:var(--muted)}
+footer{padding:36px 0 44px;font-size:15px;color:var(--muted);background:var(--t-blue)}
+footer .wrap{border-top:1px solid rgba(22,21,29,.12);padding-top:22px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+footer a{color:var(--ink);font-weight:600}
+code{white-space:nowrap;font-size:.92em}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;padding-bottom:16px;min-height:auto}
+  .top{height:56px}
+  .hero-text{padding:12px 0 0;max-width:none}
+  .fan{min-height:0;height:min(52svh,440px);margin-top:20px}
+  .split{grid-template-columns:1fr;min-height:0}
+  .film .stage{padding:0 16px 40px;background:var(--t-blue)}
+  .film .panel{padding-bottom:20px}
+  .story{display:block}
+  .stage-wrap{height:auto;top:0;z-index:2;padding:10px 12px 6px;border-bottom:1px solid var(--line);box-shadow:0 14px 16px -6px #fff}
+  .stage-wrap svg{max-height:40svh}
+  .stage-cap{font-size:13px;min-height:2.6em;margin-top:4px}
+  .step{min-height:auto;justify-content:flex-start;padding-top:24px;padding-bottom:40px}
+  .step:last-child{min-height:30svh}
+  .formula{white-space:normal;font-size:17px}
+  .tick{font-size:22px} .lab{font-size:22px} .big{font-size:42px}
+  .film .panel{padding-top:40px;padding-bottom:20px}
+  .tbl thead{display:none}
+  .tbl,.tbl tbody,.tbl caption{display:block}
+  .tbl tr{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .tbl td{display:flex;flex-direction:column;border:0;padding:0;text-align:left;white-space:normal}
+  .tbl td:first-child{grid-column:1/-1;font-size:18px;font-weight:700}
+  .tbl td,.tbl td b{font-weight:600;font-size:17px}
+  .tbl td::before{content:attr(data-l);font-size:13px;color:var(--muted);font-weight:400}
+  .tbl td:first-child::before{content:none}
+  .stage-wrap svg{max-height:44svh}
+  .play i{width:68px;height:48px;border-radius:12px}.play i svg{width:22px;height:22px}.play span{left:14px;bottom:12px;font-size:14px}.play small{right:10px;bottom:10px}
+  .nums{grid-template-columns:repeat(2,auto)}
+  .proof .head{grid-template-columns:1fr}
+  .lims{grid-template-columns:1fr}
+  .tbl{font-size:15px}
+  .tbl th,.tbl td{padding:10px 8px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-<header>
-  <div class="kick">Quantum project #5 · Ignacio San Benito</div>
-  <h1>Monte Carlo Stock Simulator</h1>
-  <p class="dek">10,000 possible futures for a stock, from two engines. Then an <strong>exam</strong>: put the simulator at ~180 past dates and check whether its “90%” bands catch reality 90% of the time.</p>
-  <video controls preload="metadata" poster="poster.jpg" src="monte-carlo-explained.mp4"></video>
-  <div class="cap">1:41 hand-drawn explainer, narrated in Spanish.</div>
-  <div class="cta">
-    <a href="demo/">Try the live demo</a>
-    <a href="monte-carlo-explicacion.html">How it works, illustrated</a>
-    <a href="https://github.com/nachoie123/monte-carlo-simulator">Code on GitHub</a>
+
+<header class="hero">
+  <nav class="top" aria-label="Site">
+    <a href="https://nachosanbenito.com">Ignacio San Benito</a>
+    <span>Quantum project 5</span>
+  </nav>
+  <div class="hero-text">
+    <p class="eyebrow">Monte Carlo stock simulator</p>
+    <h1>It promised <span class="n50">50%</span>.<br> It hit <span class="n73">73%</span>.</h1>
+    <p class="lead">10,000 simulated months for the S&amp;P 500, from two engines. Then an exam at 179 past dates: does the “50%” band really catch reality half the time? The textbook bell curve caught it <b>73%</b> of the time. Real 21-day blocks caught <b>54%</b>, within luck.</p>
+    <div class="cta">
+      <a class="btn solid" href="#film">Watch the 1:41 film</a>
+      <a class="btn" href="demo/">Try the live demo</a>
+    </div>
   </div>
+  <figure class="fan">
+    <canvas id="fan" role="img" aria-label="10,000 simulated one-month price paths for SPY fanning out from $769.64 and piling into a histogram, coloured by the band each one lands in"></canvas>
+    <figcaption>
+      <span class="count"><b id="cnt">0</b> / 10,000 paths</span>
+      <span class="key"><i style="background:var(--in50)"></i>lands in the 50% band</span>
+      <span class="key"><i style="background:var(--in90)"></i>in the 90% band</span>
+      <span class="key"><i style="background:var(--out)"></i>outside</span>
+      <span>GBM with SPY's calibrated μ 13.8%, σ 17.1%, drawn live in your browser</span>
+    </figcaption>
+  </figure>
 </header>
 
-<div class="stats">
-  <div><b><span class="gbm">73%</span> vs <span class="boot">54%</span></b><small>S&amp;P 500, 1-month horizon: share of outcomes inside the “50%” band. Textbook GBM vs block bootstrap, 179 tests (luck explains ±7 points).</small></div>
-  <div><b><span class="bad">8</span> / 16</b><small>stocks where GBM fails the Kolmogorov–Smirnov shape test. The bootstrap fails 0 of 16, and both mostly pass the Basel VaR test (Kupiec).</small></div>
-  <div><b>38 vs 0.3</b><small>days beyond ±4σ on the S&amp;P 500 since 2006, versus what a normal distribution allows.</small></div>
-</div>
-
-<section>
-  <h2>What it shows</h2>
-  <p><strong class="gbm">GBM</strong> (the model under Black–Scholes) draws each day from a bell curve calibrated on the last 5 years. The <strong class="boot">block bootstrap</strong> assumes no shape: it resamples real 21-day blocks, so crashes come back, and in clusters.</p>
-  <p>Both agree on the <strong>size</strong> of the risk. GBM gets the <strong>shape</strong> wrong: real returns are fat-tailed, mostly calmer than the bell curve says and sometimes far wilder, so its central bands are too wide. A VaR backtest alone barely notices. Checking the whole distribution does.</p>
-  <p>Correctness checks: simulated GBM matches its closed-form lognormal within sampling error, and on data that really is a bell curve the exam scores ≈90%. The backtest has no look-ahead.</p>
+<section class="split film" id="film" aria-labelledby="film-h">
+  <div class="panel">
+    <p class="chap">Watch first</p>
+    <h2 id="film-h">The whole idea in a hand-drawn film</h2>
+    <p>A Monte Carlo cone is a forecast you can grade, like a weather forecaster: not on one day, but on whether it rains 70% of the times they say “70%”.</p>
+    <p class="small">1:41, narrated in Spanish. Sound plays when you press play.</p>
+    <div class="links">
+      <a class="btn solid" href="#method">See the method</a>
+      <a class="btn" href="monte-carlo-explicacion.html">Illustrated walkthrough</a>
+    </div>
+  </div>
+  <div class="stage">
+    <figure class="promo">
+      <video controls playsinline preload="metadata" poster="poster-film.jpg" width="1920" height="1080" src="monte-carlo-explained.mp4" aria-label="Monte Carlo explainer film, 1 minute 41, narrated in Spanish"></video>
+      <button class="play" type="button" aria-label="Play the 1 minute 41 film with sound"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg></i><span>Watch the film · sound on</span><small>1:41</small></button>
+      <figcaption>Narrated in Spanish · 1:41 · hand-drawn explainer</figcaption>
+    </figure>
+  </div>
 </section>
-</div>
-<footer><div class="wrap">Data: Yahoo Finance, split- and dividend-adjusted. The public demo uses precomputed results for 5 stocks; run <code>python3 server.py</code> locally for any ticker. Not investment advice. · <a href="https://github.com/nachoie123/monte-carlo-simulator">github.com/nachoie123/monte-carlo-simulator</a></div></footer>
+
+<section class="story" id="method" aria-label="How it works">
+  <div class="stage-wrap">
+    <svg id="stage" viewBox="0 0 560 420" role="img" aria-label="Chart that changes with each step"></svg>
+    <p class="stage-cap" id="cap" aria-live="polite"></p>
+  </div>
+  <div class="steps" id="steps" data-tint="blue">
+    <article class="step" data-k="gbm" data-tint="blue">
+      <p class="chap">Two engines</p>
+      <h2>Engine 1: the bell curve</h2>
+      <p>Geometric Brownian motion, the model under Black–Scholes. Every day is a draw from one bell curve, calibrated on the last 5 years of SPY.</p>
+      <div class="formula" aria-label="S T equals S 0 times exp of mu minus half sigma squared, times T, plus sigma root T times Z">
+        <var>S</var><sub>T</sub> = <var>S</var><sub>0</sub> · exp( (<var>μ</var> − ½<var>σ</var><sup>2</sup>)<var>T</var> + <var>σ</var>√<var>T</var> · <var>Z</var> ), &nbsp;<var>Z</var> ~ N(0,1)
+      </div>
+      <div class="nums">
+        <div><b>13.8%</b><small>μ, a year</small></div>
+        <div><b>17.1%</b><small>σ, a year</small></div>
+        <div><b>21</b><small>trading days</small></div>
+      </div>
+      <p>10,000 paths. Median after a month: <b>$777.71</b>. Chance of a gain: <b>58.2%</b>.</p>
+    </article>
+    <article class="step" data-k="boot" data-tint="blue">
+      <p class="chap">Two engines</p>
+      <h2>Engine 2: real 21-day blocks</h2>
+      <p>The block bootstrap assumes no shape at all. It cuts the last 5 years into real 21-day pieces and resamples them with replacement.</p>
+      <div class="formula b">future = block<sub>i</sub>, &nbsp;i ~ Uniform{ 1 … 1,260 − 21 }</div>
+      <p>Crashes come back, and in clusters, because a block keeps its neighbours. Median after a month: <b>$781.97</b>. Chance of a gain: <b>65.7%</b>.</p>
+    </article>
+    <article class="step" data-k="land" data-tint="blue">
+      <p class="chap">Two engines</p>
+      <h2>Same size of risk</h2>
+      <p>Drop all 10,000 endpoints into a histogram. Both engines agree on how bad a bad month is.</p>
+      <div class="nums">
+        <div><b><span class="gbm">6.9%</span> · <span class="boot">7.2%</span></b><small>95% VaR, one month</small></div>
+        <div><b><span class="gbm">8.7%</span> · <span class="boot">8.9%</span></b><small>expected shortfall</small></div>
+      </div>
+      <p>A VaR backtest alone would call them equal. The difference is in the shape.</p>
+    </article>
+    <article class="step" data-k="tails" data-tint="teal">
+      <p class="chap">Why the shapes differ</p>
+      <h2>Markets are not a bell curve</h2>
+      <p>5,026 real SPY days since October 2006, measured in standard deviations. A normal distribution allows <b>0.3</b> days beyond ±4σ. There were <b>38</b>. Worst day: −10.9%.</p>
+      <p>Excess kurtosis 14.1: most days are calmer than the bell curve says, and a few are far wilder. So GBM's middle bands come out too wide.</p>
+    </article>
+    <article class="step" data-k="pit" data-tint="rose">
+      <p class="chap">The exam</p>
+      <h2>179 past months, one question</h2>
+      <p>Once a month from October 2011 to August 2026: calibrate on the 1,260 days before, simulate, then mark where the real price landed inside the simulated distribution (its PIT, a number from 0 to 1).</p>
+      <p>An honest model spreads the 179 dots evenly, about 18 per column. GBM piles them in the middle. The bootstrap stays flat.</p>
+    </article>
+    <article class="step" data-k="score" data-tint="rose">
+      <p class="chap">The exam</p>
+      <h2>Graded: GBM fails, the bootstrap passes</h2>
+      <p>Share of real outcomes inside the central band. With 179 tests, luck alone moves this by about ±7 points at 50% and ±4.4 at 90% (the grey zone).</p>
+      <p><b class="gbm">GBM</b>: 73% and 96%, both outside the noise. <b class="boot">Bootstrap</b>: 54% and 91%, inside it.</p>
+    </article>
+  </div>
+</section>
+
+<section class="proof" aria-labelledby="proof-h">
+  <div class="wrap">
+    <div class="head">
+      <h2 id="proof-h">Not cherry-picked: rerun on 16 stocks</h2>
+      <p>US, Spanish and UK stocks and ETFs, 1-month horizon, with the two tests a risk team asks for: Kupiec (the Basel VaR backtest) and Kolmogorov–Smirnov on the whole distribution.</p>
+    </div>
+    <div class="ks" role="img" aria-label="Kolmogorov–Smirnov shape test on 16 stocks: GBM fails 8, the bootstrap fails 0">
+      <div><b class="gbm">GBM</b><span class="sq"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><small>fails the shape test on 8 of 16 stocks</small></div>
+      <div><b class="boot">Block bootstrap</b><span class="sq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><small>fails on 0 of 16</small></div>
+    </div>
+    <div class="scroll-x">
+      <table class="tbl">
+        <caption>16 stocks pooled, p &lt; 0.05 counts as a fail</caption>
+        <thead><tr><th>Engine</th><th>Inside 50% band</th><th>Inside 90% band</th><th>VaR 95% breaches</th><th>Kupiec fails</th><th>KS fails</th></tr></thead>
+        <tbody>
+          <tr class="g"><td data-l="Engine">GBM</td><td data-l="Inside 50% band"><b>61.9%</b></td><td data-l="Inside 90% band"><b>93.6%</b></td><td data-l="VaR breaches">3.5%</td><td data-l="Kupiec fails">1 / 16</td><td data-l="KS fails"><b class="miss">8 / 16</b></td></tr>
+          <tr class="bt"><td data-l="Engine">Block bootstrap</td><td data-l="Inside 50% band"><b>51.6%</b></td><td data-l="Inside 90% band"><b>89.7%</b></td><td data-l="VaR breaches">4.9%</td><td data-l="Kupiec fails">0 / 16</td><td data-l="KS fails"><b>0 / 16</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">GBM passes the VaR test on 15 of 16 and fails the shape test on half. Checking one quantile is not enough. The pooled figures overlap in time across stocks, so read them as a summary, not as 2,877 independent tests.</p>
+    <div class="scroll-x">
+      <table class="tbl">
+        <caption>Four stocks in detail, about 180 independent monthly tests each</caption>
+        <thead><tr><th>Ticker</th><th>History</th><th>GBM, 50% band</th><th>Bootstrap, 50% band</th><th>GBM, 90% band</th><th>Bootstrap, 90% band</th></tr></thead>
+        <tbody>
+          <tr><td data-l="Ticker">SPY</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band" class="miss">73%</td><td data-l="Bootstrap, 50% band">54%</td><td data-l="GBM, 90% band" class="miss">96%</td><td data-l="Bootstrap, 90% band">91%</td></tr>
+          <tr><td data-l="Ticker">AAPL</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">56%</td><td data-l="Bootstrap, 50% band">52%</td><td data-l="GBM, 90% band">95%</td><td data-l="Bootstrap, 90% band">91%</td></tr>
+          <tr><td data-l="Ticker">KO</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">60%</td><td data-l="Bootstrap, 50% band">46%</td><td data-l="GBM, 90% band">93%</td><td data-l="Bootstrap, 90% band">90%</td></tr>
+          <tr><td data-l="Ticker">ITX.MC</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">57%</td><td data-l="Bootstrap, 50% band">50%</td><td data-l="GBM, 90% band">93%</td><td data-l="Bootstrap, 90% band">89%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="limits" aria-labelledby="lim-h">
+  <div class="wrap">
+    <h2 id="lim-h">Where it breaks</h2>
+    <p class="lead">The checks pass: simulated GBM matches its closed-form lognormal within sampling error, the exam scores about 90% on data that really is a bell curve, and an independent review found no look-ahead. These are the limits it does not hide.</p>
+    <div class="lims">
+      <div><h3>It doesn't forecast direction</h3><p>μ is the 5-year mean return, which is mostly noise. The width of the cone is the information.</p></div>
+      <div><h3>Volatility is constant in each run</h3><p>After a crash it isn't. Modelling that is GARCH, a separate Quantum project.</p></div>
+      <div><h3>Survivorship bias</h3><p>Only stocks that still trade can be examined.</p></div>
+      <div><h3>Long horizons have little power</h3><p>15 years of test dates hold only about 14 non-overlapping years, so the demo says so at 1 year instead of drawing conclusions.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="end" aria-labelledby="end-h">
+  <div class="wrap">
+    <h2 id="end-h">Run it on another stock</h2>
+    <p>The public demo uses precomputed results for 5 stocks. Run <code>python3 server.py</code> locally for any ticker, by name or exact symbol.</p>
+    <div class="links">
+      <a class="btn solid" href="demo/">Try the live demo</a>
+      <a class="btn" href="monte-carlo-explicacion.html">Illustrated walkthrough</a>
+      <a class="btn" href="https://github.com/nachoie123/monte-carlo-simulator">Code on GitHub</a>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="wrap">
+    <span><a href="https://nachosanbenito.com">Ignacio San Benito</a> · IE University</span>
+    <span>Data: Yahoo Finance, split- and dividend-adjusted. Not investment advice.</span>
+  </div>
+</footer>
+
+<script>
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* the film: never autoplays; the button starts it with sound, then native controls take over */
+(() => {
+  const film = document.querySelector('#film video'), pb = document.querySelector('#film .play');
+  film.controls = false;
+  pb.addEventListener('click', () => film.play().catch(() => {}));
+  film.addEventListener('play', () => { film.controls = true; pb.remove(); }, { once: true });
+})();
+
+/* ---------- hero: 10,000 GBM paths, drawn live ---------- */
+(() => {
+  const S0 = 769.64, MU = 0.138122, SIG = 0.171377, DAYS = 21, N = 10000;
+  const dt = 1 / 252, drift = (MU - SIG * SIG / 2) * dt, vol = SIG * Math.sqrt(dt);
+  // fixed seed, like the project
+  let a = 20261002; const rnd = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+  const P = new Float32Array(N * (DAYS + 1));
+  for (let i = 0; i < N; i++) { let s = S0; P[i * 22] = s; for (let d = 1; d <= DAYS; d++) { s *= Math.exp(drift + vol * gauss()); P[i * 22 + d] = s; } }
+  // band edges from the lognormal (exact for GBM)
+  const m = drift * DAYS, sd = vol * Math.sqrt(DAYS), q = z => S0 * Math.exp(m + sd * z);
+  const B = { p5: q(-1.6449), p25: q(-0.6745), p75: q(0.6745), p95: q(1.6449) };
+  const LO = q(-3.2), HI = q(3.2);
+  const colOf = v => v >= B.p25 && v <= B.p75 ? 0 : v >= B.p5 && v <= B.p95 ? 1 : 2;
+  const COLS = ['63,184,169', '214,178,62', '208,80,122'];
+  const NB = 64, bins = new Uint16Array(NB);
+  const cv = document.getElementById('fan'), ctx = cv.getContext('2d'), cnt = document.getElementById('cnt');
+  const paths = document.createElement('canvas'), pctx = paths.getContext('2d');
+  let W, H, dpr, x0, x1, hx0, hx1, done = 0, parts = [], raf = 0, maxBin = 1;
+  const bOf = v => Math.max(0, Math.min(NB - 1, Math.floor((v - LO) / (HI - LO) * NB)));
+  const Y = v => H - 22 - (Math.log(v) - Math.log(LO)) / (Math.log(HI) - Math.log(LO)) * (H - 44);
+  const binY = b => Y(LO + (b + .5) / NB * (HI - LO));
+  // expected max bin, so bars don't rescale while they grow
+  for (let i = 0; i < N; i++) bins[bOf(P[i * 22 + DAYS])]++; maxBin = Math.max(...bins); bins.fill(0);
+
+  function layout() {
+    dpr = Math.min(devicePixelRatio || 1, 2); const r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+    for (const c of [cv, paths]) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+    if (!W || !H) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const narrow = W < 560; x0 = narrow ? 8 : 70; x1 = W * (narrow ? .6 : .64); hx0 = x1 + (narrow ? 14 : 26); hx1 = W - (narrow ? 4 : 8);
+    pctx.clearRect(0, 0, W, H); pctx.lineWidth = 1;
+    for (let i = 0; i < done; i++) drawPath(i);
+  }
+  function drawPath(i) {
+    const o = i * 22, c = colOf(P[o + DAYS]);
+    pctx.strokeStyle = `rgba(${COLS[c]},${c === 0 ? .03 : c === 1 ? .045 : .09})`; pctx.beginPath();
+    for (let d = 0; d <= DAYS; d++) { const x = x0 + d / DAYS * (x1 - x0), y = Y(P[o + d]); d ? pctx.lineTo(x, y) : pctx.moveTo(x, y); }
+    pctx.stroke();
+  }
+  function frame(now) {
+    if (!paths.width || !paths.height) { layout(); raf = requestAnimationFrame(frame); return; }
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(paths, 0, 0, W, H);
+    // guides: today + band brackets
+    ctx.font = '13px Assistant, sans-serif'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f4f3f8'; ctx.beginPath(); ctx.arc(x0, Y(S0), 3.5, 0, 7); ctx.fill();
+    if (W >= 560) { ctx.textAlign = 'right'; ctx.fillStyle = '#b4b1c4'; ctx.fillText('$769.64', x0 - 10, Y(S0) - 8); ctx.fillText('Oct 2, 2026', x0 - 10, Y(S0) + 9); }
+    ctx.textAlign = 'center'; ctx.fillStyle = '#8e8aa3'; ctx.fillText('one month, 21 trading days →', (x0 + x1) / 2, H - 8);
+    const bw = hx1 - hx0, bh = Math.max(1.5, (H - 44) / NB - 1.2);
+    for (let b = 0; b < NB; b++) {
+      if (!bins[b]) continue; const v = LO + (b + .5) / NB * (HI - LO), c = colOf(v);
+      ctx.fillStyle = `rgb(${COLS[c]})`; ctx.fillRect(hx0, binY(b) - bh / 2, bins[b] / maxBin * bw, bh);
+    }
+    ctx.strokeStyle = 'rgba(244,243,248,.35)'; ctx.beginPath(); ctx.moveTo(hx0 - .5, 22); ctx.lineTo(hx0 - .5, H - 22); ctx.stroke();
+    // flying endpoints
+    parts = parts.filter(p => {
+      const k = Math.min(1, (now - p.t) / 520), e = 1 - Math.pow(1 - k, 3);
+      const x = p.x + (hx0 + bins[p.b] / maxBin * bw - p.x) * e;
+      ctx.fillStyle = `rgb(${COLS[p.c]})`; ctx.fillRect(x - 1.5, p.y - 1.5, 3, 3);
+      if (k >= 1) { bins[p.b]++; return false; } return true;
+    });
+    if (done < N) {
+      const per = 70, end = Math.min(N, done + per);
+      for (let i = done; i < end; i++) { drawPath(i); const v = P[i * 22 + DAYS], b = bOf(v); parts.push({ x: x1, y: binY(b), b, c: colOf(v), t: now }); }
+      done = end; cnt.textContent = done.toLocaleString('en-US');
+    }
+    if (done < N || parts.length) raf = requestAnimationFrame(frame);
+  }
+  function finishNow() { done = N; bins.fill(0); for (let i = 0; i < N; i++) bins[bOf(P[i * 22 + DAYS])]++; parts = []; cnt.textContent = '10,000'; layout(); frame(performance.now()); }
+  let started = false;
+  const start = () => { if (started) return; started = true; layout(); if (RM) finishNow(); else raf = requestAnimationFrame(frame); };
+  document.fonts && document.fonts.ready.then(start); setTimeout(start, 600);
+  let rt; new ResizeObserver(() => { if (!started) return; clearTimeout(rt); rt = setTimeout(() => { if (done >= N && !parts.length) { layout(); frame(performance.now()); } else layout(); }, 80); }).observe(cv);
+})();
+
+/* ---------- story stage: real results from the project (demo/data/spy-1m.json) ---------- */
+(async () => {
+  const svg = document.getElementById('stage'), cap = document.getElementById('cap'), steps = document.getElementById('steps');
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (t, a = {}, p = svg, txt) => { const e = document.createElementNS(NS, t); if (a.style) e.setAttribute('style', a.style); for (const k in a) { if (k === 'style') continue; const v = String(a[k]); if ((k === 'fill' || k === 'stroke') && v.startsWith('var(')) e.style[k] = v; else e.setAttribute(k, v); } if (txt != null) e.textContent = txt; p.appendChild(e); return e; };
+  const sc = (d0, d1, r0, r1) => v => r0 + (v - d0) / (d1 - d0) * (r1 - r0);
+  const poly = pts => 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L');
+  let D; try { D = await (await fetch('demo/data/spy-1m.json')).json(); } catch (e) { cap.textContent = 'Chart data could not load. The numbers in the text are the same results.'; return; }
+  const MQ = matchMedia('(max-width: 860px)');
+  let layers, caps;
+  const build = () => {
+  svg.textContent = ''; layers = {}; caps = {};
+  const F = MQ.matches ? 1.7 : 1;            // label scale: mobile fonts are ~1.7x in viewBox units
+  const L = { l: F > 1 ? 70 : 56, r: 548, t: 26, b: F > 1 ? 350 : 384 };
+  const TY = L.b + 6 + 14 * F, TT = L.b + 6 + 32 * F;   // tick row, axis-title row
+  const layer = (k, c) => { layers[k] = el('g', { class: 'layer', 'data-k': k }); caps[k] = c; return layers[k]; };
+  const pMin = 670, pMax = 880;
+
+  // fan layers (GBM, bootstrap) on a shared price axis
+  const fan = (k, key, color, label, med) => {
+    const g = layer(k, label), S = D.sim[key], x = sc(0, 21, L.l, 400), y = sc(pMin, pMax, L.b, L.t);
+    [700, 750, 800, 850].forEach(v => { el('line', { x1: L.l, x2: 400, y1: y(v), y2: y(v), class: 'grid' }, g); el('text', { x: L.l - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'tick' }, g, '$' + v); });
+    [0, 5, 10, 15, 21].forEach(d => el('text', { x: x(d), y: TY, 'text-anchor': 'middle', class: 'tick' }, g, d));
+    el('text', { x: 400, y: TT, 'text-anchor': 'end', class: 'tick' }, g, 'trading days');
+    el('line', { x1: L.l, x2: 400, y1: L.b, y2: L.b, class: 'ax' }, g);
+    const bd = S.bands, area = (lo, hi, o) => el('path', { d: poly(bd[lo].map((v, d) => [x(d), y(v)])) + 'L' + bd[hi].map((v, d) => [x(d), y(v)]).reverse().map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L') + 'Z', fill: color, 'fill-opacity': o, class: 'fade' }, g);
+    area('5', '95', .12); area('25', '75', .2);
+    S.samples.forEach((s, i) => el('path', { d: poly(s.map((v, d) => [x(d), y(v)])), fill: 'none', stroke: color, 'stroke-width': 1, opacity: .55, pathLength: 1, class: 'draw', style: `transition-delay:${(i * 18)}ms` }, g));
+    el('path', { d: poly(bd['50'].map((v, d) => [x(d), y(v)])), fill: 'none', stroke: '#16151d', 'stroke-width': 1.6, pathLength: 1, class: 'draw', style: 'transition-delay:500ms' }, g);
+    el('circle', { cx: x(0), cy: y(D.s0), r: 4, fill: '#16151d' }, g);
+    const e = 21, lx = 410;
+    [['95', '95th'], ['75', '75th'], ['25', '25th'], ['5', '5th']].forEach(([b, t]) => el('text', { x: lx, y: y(bd[b][e]) + 4, class: 'tick fade' }, g, t + ' percentile'));
+    el('text', { x: lx, y: y(bd['50'][e]) + 5, class: 'lab fade' }, g, 'median $' + med);
+    el('text', { x: 10, y: 12, class: 'lab', style: 'fill:' + color }, g, label);
+  };
+  fan('gbm', 'gbm', 'var(--gbm)', 'GBM: 40 of 10,000 paths, 50% and 90% bands', '777.71');
+  fan('boot', 'bootstrap', 'var(--boot)', 'Block bootstrap: 40 of 10,000 paths, same bands', '781.97');
+  caps.gbm = 'Real output of montecarlo.py for SPY, from $769.64 on Oct 2, 2026. Shaded: the 50% and 90% bands the exam will check.';
+  caps.boot = 'Same stock, same horizon. The bootstrap cone is a little narrower in the middle and leans up, because the last 5 years did.';
+
+  // where they land: sideways histograms of 10,000 endpoints
+  {
+    const g = layer('land'), E = D.sim.hist_edges, y = sc(pMin, pMax, L.b, L.t), x0 = 150, x1 = 520;
+    const mx = Math.max(...D.sim.gbm.hist, ...D.sim.bootstrap.hist), xs = sc(0, mx, x0, x1);
+    [700, 750, 800, 850].forEach(v => { el('line', { x1: x0, x2: x1, y1: y(v), y2: y(v), class: 'grid' }, g); el('text', { x: x0 - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'tick' }, g, '$' + v); });
+    el('line', { x1: x0, x2: x0, y1: L.t, y2: L.b, class: 'ax' }, g);
+    D.sim.gbm.hist.forEach((c, i) => { const ya = y(E[i + 1]), yb = y(E[i]); el('rect', { x: x0, y: ya + .6, width: Math.max(0, xs(c) - x0), height: Math.max(.5, yb - ya - 1.2), fill: 'var(--gbm)', opacity: .55, class: 'grow', style: `transition-delay:${i * 14}ms` }, g); });
+    const st = []; D.sim.bootstrap.hist.forEach((c, i) => { st.push([xs(c), y(E[i])], [xs(c), y(E[i + 1])]); });
+    el('path', { d: poly(st), fill: 'none', stroke: 'var(--boot)', 'stroke-width': 2.2, pathLength: 1, class: 'draw', style: 'transition-delay:450ms' }, g);
+    el('line', { x1: x0 - 4, x2: x1, y1: y(D.s0), y2: y(D.s0), stroke: '#16151d', 'stroke-dasharray': '3 4' }, g);
+    el('text', { x: x0 - 8, y: y(D.s0) + 4, 'text-anchor': 'end', class: 'tick', style: 'fill:#16151d' }, g, 'today');
+    el('text', { x: x0 - 8, y: 12, class: 'lab', style: 'fill:var(--gbm)' }, g, 'GBM (bars)');
+    el('text', { x: x0 + 92 * F, y: 12, class: 'lab', style: 'fill:var(--boot)' }, g, 'Bootstrap (line)');
+    el('text', { x: x1, y: TY, 'text-anchor': 'end', class: 'tick' }, g, 'paths per price, of 10,000');
+    el('text', { x: x0 - 8, y: TY, 'text-anchor': 'end', class: 'tick' }, g, 'price ↕');
+    caps.land = 'Histograms straight from the project: same spread, different shape. The bootstrap is lumpier because real months are.';
+  }
+
+  // tails: real daily returns vs a bell curve, log scale
+  {
+    const g = layer('tails'), T = D.tails.hist, x = sc(-6, 6, L.l, L.r), lg = v => Math.log10(1 + v), y = sc(0, lg(1000), L.b, L.t + 20);
+    el('rect', { x: L.l, y: L.t + 20, width: x(-4) - L.l, height: L.b - L.t - 20, fill: 'var(--bad)', opacity: .08 }, g);
+    el('rect', { x: x(4), y: L.t + 20, width: L.r - x(4), height: L.b - L.t - 20, fill: 'var(--bad)', opacity: .08 }, g);
+    [1, 10, 100, 1000].forEach(v => { el('line', { x1: L.l, x2: L.r, y1: y(lg(v)), y2: y(lg(v)), class: 'grid' }, g); el('text', { x: L.l - 8, y: y(lg(v)) + 4, 'text-anchor': 'end', class: 'tick' }, g, v.toLocaleString('en-US')); });
+    const w = (x(.25) - x(0));
+    T.mid.forEach((m, i) => { const c = T.real[i]; if (!c) return; el('rect', { x: x(m) - w / 2 + .6, y: y(lg(c)), width: w - 1.2, height: L.b - y(lg(c)), fill: Math.abs(m) > 4 ? 'var(--bad)' : '#2a2738', opacity: Math.abs(m) > 4 ? 1 : .8, class: 'growy', style: `transition-delay:${Math.abs(i - 23.5) * 22}ms` }, g); });
+    el('path', { d: poly(T.mid.map((m, i) => [x(m), y(lg(T.normal[i]))])), fill: 'none', stroke: 'var(--gbm)', 'stroke-width': 2.2, pathLength: 1, class: 'draw', style: 'transition-delay:500ms' }, g);
+    el('line', { x1: L.l, x2: L.r, y1: L.b, y2: L.b, class: 'ax' }, g);
+    [-6, -4, -2, 0, 2, 4, 6].forEach(v => el('text', { x: x(v) + (v === 6 ? 6 : v === -6 ? -6 : 0), y: TY, 'text-anchor': v === 6 ? 'end' : v === -6 ? 'start' : 'middle', class: 'tick' }, g, (v === -6 ? '≤' : v === 6 ? '≥' : '') + (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + 'σ'));
+    el('text', { x: L.l, y: 12, class: 'lab' }, g, '5,026 real SPY days (bars) vs a bell curve (blue line)');
+    el('text', { x: L.r - 4, y: L.t + 20 + 20 * F, 'text-anchor': 'end', class: 'lab', style: 'fill:var(--bad)' }, g, '38 real days');
+    el('text', { x: L.r - 4, y: L.t + 20 + 42 * F, 'text-anchor': 'end', class: 'lab m' }, g, 'normal: 0.3');
+    el('text', { x: L.r, y: TT, 'text-anchor': 'end', class: 'tick' }, g, 'daily return in σ · log scale');
+    caps.tails = 'From the project: daily SPY returns 2006–2026 against the normal with the same σ. Red: beyond ±4σ. The end bars collect everything past ±6σ (the worst day was about −10σ).';
+  }
+
+  // the exam: 179 PIT dots per engine, dropped into 10 columns
+  {
+    const g = layer('pit'), rr = 3.6, gap = 8.2, base = L.b - 6;
+    const panel = (key, ox, color, name) => {
+      const cols = Array.from({ length: 10 }, () => 0), cw = 21.5;
+      el('text', { x: ox, y: 12, class: 'lab', style: 'fill:' + color }, g, name);
+      el('line', { x1: ox - 4, x2: ox + cw * 10 + 4, y1: base + rr + 3, y2: base + rr + 3, class: 'ax' }, g);
+      const fair = 17.9; el('line', { x1: ox - 4, x2: ox + cw * 10 + 4, y1: base - (fair - .5) * gap, y2: base - (fair - .5) * gap, stroke: '#16151d', 'stroke-dasharray': '4 4' }, g);
+      D.exam[key].pit.forEach((p, i) => { const c = Math.min(9, Math.floor(p * 10)), h = cols[c]++; el('circle', { cx: ox + cw * c + cw / 2, cy: base - h * gap, r: rr, fill: color, class: 'drop', style: `transition-delay:${Math.round(i * 7 + h * 6)}ms` }, g); });
+      ['0', '0.5', '1'].forEach((t, j) => el('text', { x: ox + j * cw * 5, y: TY, 'text-anchor': 'middle', class: 'tick' }, g, t));
+    };
+    panel('gbm', 40, 'var(--gbm)', 'GBM'); panel('bootstrap', 310, 'var(--boot)', 'Block bootstrap');
+    el('text', { x: 41, y: base - 17.4 * gap + 22 * F, class: 'lab m' }, g, 'honest');
+    el('text', { x: 280, y: TT, 'text-anchor': 'middle', class: 'tick' }, g, 'PIT: where reality landed, 0 to 1');
+    caps.pit = 'The real 179 exam results, one dot per month, 2011–2026. Dashed line: the flat pile an honest model would leave.';
+  }
+
+  // the score
+  {
+    const g = layer('score'), x = sc(0, 100, 170, F > 1 ? 440 : 480), bh = F > 1 ? 46 : 54, dy2 = bh + 10, rh = 2 * dy2 + 10;
+    const row = (y0, promise, gv, bv, noise) => {
+      el('rect', { x: x(promise - noise), y: y0 - 8, width: x(promise + noise) - x(promise - noise), height: rh + 4, fill: '#16151d', opacity: .13 }, g);
+      el('text', { x: 20, y: y0 + 28, class: 'lab' }, g, 'Promised ' + promise + '%');
+      el('text', { x: 20, y: y0 + 28 + 22 * F, class: 'tick' }, g, 'luck: ±' + noise + ' pts');
+      [[gv, 'var(--gbm)', 'GBM', 0], [bv, 'var(--boot)', 'Bootstrap', dy2]].forEach(([v, c, n, dy]) => {
+        el('rect', { x: x(0), y: y0 + dy, width: x(v) - x(0), height: bh, fill: c, rx: 2, class: 'grow', style: `transition-delay:${dy * 6}ms` }, g);
+        el('text', { x: x(v) + 8, y: y0 + dy + bh * .78, class: 'big', style: 'fill:' + c }, g, Math.round(v) + '%');
+        el('text', { x: x(0) + 10, y: y0 + dy + bh * .66, class: 'lab', style: 'fill:#fff' }, g, n);
+      });
+      el('line', { x1: x(promise), x2: x(promise), y1: y0 - 14, y2: y0 + rh, stroke: '#16151d', 'stroke-width': 2 }, g);
+      el('text', { x: x(promise), y: y0 - 16 - 6 * F, 'text-anchor': 'middle', class: 'lab' }, g, promise + '% promised');
+    };
+    row(40 + 14 * F, 50, 73.18, 53.63, 7); row(40 + 14 * F + rh + 30 + 14 * F, 90, 95.53, 91.06, 4.4);
+    el('line', { x1: x(0), x2: x(0), y1: 30, y2: L.b, class: 'ax' }, g);
+    [0, 25, 50, 75, 100].forEach(v => el('text', { x: x(v), y: TY, 'text-anchor': 'middle', class: 'tick' }, g, v + '%'));
+    caps.score = 'Share of 179 real outcomes that landed inside each band. Grey: the range luck alone produces (95% binomial interval).';
+  }
+  if (cur) { const k = cur; cur = null; show(k, steps.dataset.tint); }
+  };
+
+  let cur = null;
+  const show = (k, tint) => {
+    if (k === cur) return; cur = k;
+    for (const n in layers) layers[n].classList.toggle('on', n === k);
+    cap.textContent = caps[k] || ''; steps.dataset.tint = tint;
+  };
+  build(); MQ.addEventListener('change', build);
+  const arts = [...document.querySelectorAll('.step')];
+  show(arts[0].dataset.k, arts[0].dataset.tint);
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) show(e.target.dataset.k, e.target.dataset.tint); }), { rootMargin: '-58% 0px -40% 0px' });
+  arts.forEach(a => io.observe(a));
+})();
+</script>
 </body>
 </html>
