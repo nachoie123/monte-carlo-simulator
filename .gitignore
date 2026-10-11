@@ -1,2 +1,9 @@
 __pycache__/
 .DS_Store
+
+apple/build*
+apple/dist
+apple/icon/*.png
+apple/MonteCarlo.xcodeproj
+apple/MonteCarloKit/.build
+apple/MonteCarloKit/.swiftpm
