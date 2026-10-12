@@ -27,6 +27,7 @@ struct Copy {
     let step6: String, step6Title: String, limits: [(String, String)]
     let footer: (Analysis) -> String, notAdvice: String, author: String
     let computing: String
+    let addPrompt: String, addHint: String, notFound: (String) -> String, remove: String
 
     static let es = Copy(
         appTitle: "Monte Carlo Stock Simulator", kicker: "Simulador que se examina",
@@ -66,7 +67,10 @@ struct Copy {
             ("Sesgo de superviviente", "Solo se pueden simular empresas que siguen cotizando hoy. Las que quebraron no entran en el examen.")],
         footer: { a in "Datos: Yahoo Finance (precios ajustados por dividendos y splits), histórico desde \(a.historyFrom). \(Fmt.int(a.nPaths)) caminos por motor, semilla fija. La matemática corre en este aparato (MonteCarloKit, portado de montecarlo.py y probado contra sus números)." },
         notAdvice: "No es asesoramiento financiero.", author: "Ignacio San Benito · IE University",
-        computing: "Simulando 10.000 futuros y examinando 15 años…")
+        computing: "Simulando 10.000 futuros y examinando 15 años…",
+        addPrompt: "Añadir empresa: nombre o ticker", addHint: "Cualquier acción o ETF, con datos de Yahoo Finance (sin cuenta). Las cinco primeras vienen dentro de la app por si Yahoo falla.",
+        notFound: { "No encontré una acción con histórico suficiente (6,5 años) y datos limpios para «\($0)». Prueba con el ticker exacto (p. ej. ITX.MC)." },
+        remove: "Quitar")
 
     static let en = Copy(
         appTitle: "Monte Carlo Stock Simulator", kicker: "A simulator that grades itself",
@@ -106,5 +110,8 @@ struct Copy {
             ("Survivorship bias", "Only companies still trading today can be simulated. The ones that went bust never sit the exam.")],
         footer: { a in "Data: Yahoo Finance (prices adjusted for dividends and splits), history since \(a.historyFrom). \(Fmt.int(a.nPaths)) paths per engine, fixed seed. All the maths runs on this device (MonteCarloKit, ported from montecarlo.py and tested against its numbers)." },
         notAdvice: "Not financial advice.", author: "Ignacio San Benito · IE University",
-        computing: "Simulating 10,000 futures and grading 15 years…")
+        computing: "Simulating 10,000 futures and grading 15 years…",
+        addPrompt: "Add a company: name or ticker", addHint: "Any stock or ETF, with data from Yahoo Finance (no account). The first five ship inside the app in case Yahoo is down.",
+        notFound: { "No stock with enough history (6.5 years) and clean data found for “\($0)”. Try the exact ticker (e.g. ITX.MC)." },
+        remove: "Remove")
 }
