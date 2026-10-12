@@ -80,6 +80,24 @@ sampling error. An independent review found no look-ahead in the backtest.
 - **Survivorship bias.** Only stocks that still trade can be examined.
 - **Overlapping origins** at 3-month and 1-year horizons, so the UI reports the effective number of independent tests.
 
+## Native app (Mac and iPhone)
+
+The same two engines and the same exam, ported line by line to Swift (`apple/MonteCarloKit`) and
+tested against the Python on 15 fixtures (5 stocks × 3 horizons): the deterministic parts (μ, σ,
+tails, GBM's PIT, dates) match to the digit, the random parts (10,000 paths, bootstrap) within
+sampling tolerance. The app (`apple/App`, SwiftUI, one codebase for iOS 26 and macOS 26) is a lab:
+horizon, bootstrap block, number of paths and seed recompute in the background; five stocks ship
+inside the app and any other is fetched from Yahoo Finance by name or ticker. Spanish or English
+after the system language. Nothing leaves the device except that Yahoo request.
+
+- **Mac:** [download the .pkg](https://github.com/nachoie123/monte-carlo-simulator/releases/latest)
+  (signed with a Developer ID and notarized by Apple; double-click installs it in Applications).
+- **iPhone:** TestFlight, soon.
+- **Build it yourself:** `brew install xcodegen`, then `cd apple && xcodegen && open MonteCarlo.xcodeproj`.
+  Kit tests: `cd apple/MonteCarloKit && swift test -c release`.
+
+Privacy: the app collects nothing ([policy](https://nachosanbenito.com/monte-carlo-simulator/privacidad.html)).
+
 ## Run it
 
 ```bash
