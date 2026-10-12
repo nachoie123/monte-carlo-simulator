@@ -157,6 +157,11 @@ html:not(.js) .play{display:none}
 .end{padding:clamp(56px,8vw,96px) 0 24px;background:var(--t-blue)}
 .end .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
 .end p{max-width:60ch;color:var(--muted)}
+.fine{font-size:14px;color:var(--on-night-2);margin:12px 0 0;max-width:52ch}
+.end .fine{color:var(--muted);margin-top:18px}
+.app-head{display:grid;grid-template-columns:minmax(300px,2fr) 3fr;gap:32px 48px;align-items:center}
+.app-shot{margin:0;border-radius:10px;overflow:hidden;border:1px solid rgba(22,21,29,.14);box-shadow:0 30px 60px -30px rgba(42,39,56,.45);background:#fff}
+.app-shot img{display:block;width:100%;height:auto}
 footer{padding:36px 0 44px;font-size:15px;color:var(--muted);background:var(--t-blue)}
 footer .wrap{border-top:1px solid rgba(22,21,29,.12);padding-top:22px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
 footer a{color:var(--ink);font-weight:600}
@@ -192,6 +197,7 @@ code{white-space:nowrap;font-size:.92em}
   .nums{grid-template-columns:repeat(2,auto)}
   .proof .head{grid-template-columns:1fr}
   .lims{grid-template-columns:1fr}
+  .app-head{grid-template-columns:1fr}
   .tbl{font-size:15px}
   .tbl th,.tbl td{padding:10px 8px}
 }
@@ -212,9 +218,11 @@ code{white-space:nowrap;font-size:.92em}
     <h1>It promised <span class="n50">50%</span>.<br> It hit <span class="n73">73%</span>.</h1>
     <p class="lead">10,000 simulated months for the S&amp;P 500, from two engines. Then an exam at 179 past dates: does the “50%” band really catch reality half the time? The textbook bell curve caught it <b>73%</b> of the time. Real 21-day blocks caught <b>54%</b>, within luck.</p>
     <div class="cta">
-      <a class="btn solid" href="#film">Watch the 1:41 film</a>
+      <a class="btn solid" href="https://github.com/nachoie123/monte-carlo-simulator/releases/download/v1.0/MonteCarloStockSimulator-1.0.pkg" download>Download for Mac</a>
+      <a class="btn" href="#film">Watch the 1:41 film</a>
       <a class="btn" href="demo/">Try the live demo</a>
     </div>
+    <p class="fine">Native app, 0.8 MB, notarized by Apple, macOS 26. Also for iPhone via TestFlight, soon.</p>
   </div>
   <figure class="fan">
     <canvas id="fan" role="img" aria-label="10,000 simulated one-month price paths for SPY fanning out from $769.64 and piling into a histogram, coloured by the band each one lands in"></canvas>
@@ -355,14 +363,20 @@ code{white-space:nowrap;font-size:.92em}
   </div>
 </section>
 
-<section class="end" aria-labelledby="end-h">
+<section class="end" id="app" aria-labelledby="end-h">
   <div class="wrap">
-    <h2 id="end-h">Run it on another stock</h2>
-    <p>The public demo uses precomputed results for 5 stocks. Run <code>python3 server.py</code> locally for any ticker, by name or exact symbol.</p>
-    <div class="links">
-      <a class="btn solid" href="demo/">Try the live demo</a>
-      <a class="btn" href="monte-carlo-explicacion.html">Illustrated walkthrough</a>
-      <a class="btn" href="https://github.com/nachoie123/monte-carlo-simulator">Code on GitHub</a>
+    <div class="app-head">
+      <div>
+        <h2 id="end-h">Run it on any stock, on your Mac</h2>
+        <p>The same two engines and the same exam, as a native app. Five stocks come built in; type any company name and it pulls the prices from Yahoo Finance and runs the 10,000 paths on your Mac. Spanish or English, after your system.</p>
+        <div class="links">
+          <a class="btn solid" href="https://github.com/nachoie123/monte-carlo-simulator/releases/download/v1.0/MonteCarloStockSimulator-1.0.pkg" download>Download for Mac</a>
+          <a class="btn" href="demo/">Try the live demo</a>
+          <a class="btn" href="https://github.com/nachoie123/monte-carlo-simulator">Code on GitHub</a>
+        </div>
+        <p class="fine">0.8 MB installer, signed with a Developer ID and notarized by Apple: double-click and it lands in Applications. Needs macOS 26. iPhone version coming through TestFlight; the Python version runs anywhere with <code>python3 server.py</code>.</p>
+      </div>
+      <figure class="app-shot"><img src="app-mac.jpg" width="1400" height="993" alt="The Mac app: a sidebar with Apple, Inditex, Nvidia, Repsol, SPY and a searched Microsoft; the lab with horizon, block and path controls; the 3-month verdict cards and the first chart" loading="lazy" decoding="async"></figure>
     </div>
   </div>
 </section>
