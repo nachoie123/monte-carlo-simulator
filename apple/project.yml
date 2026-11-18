@@ -50,6 +50,8 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleDefault
         ENABLE_HARDENED_RUNTIME: YES
+        # objetivo de iPhone + Mac: sin esto el Mac busca Sparkle.framework en Contents/MacOS/Frameworks y no abre
+        "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": ["$(inherited)", "@executable_path/../Frameworks"]
         ENABLE_PREVIEWS: YES
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
