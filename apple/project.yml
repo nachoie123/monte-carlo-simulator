@@ -17,6 +17,20 @@ targets:
       - path: App
     dependencies:
       - package: MonteCarloKit
+      # Sparkle 2.10.1 oficial (sparkle-project.org), descomprimido fuera del repo; actualizaciones del Mac
+      - framework: ../../../apps-nativas/sparkle-2.10.1/Sparkle.framework
+        embed: true
+        destinationFilters: [macOS]
+    # Sparkle (solo Mac): mira cada día si hay versión nueva y la instala sola al cerrar la app.
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        SUFeedURL: https://nachosanbenito.com/monte-carlo-simulator/appcast.xml
+        SUPublicEDKey: P4duSfYCtrpopwAjL9zcxrrLn7DYaDk3ws38jqC6Ehs=
+        SUEnableAutomaticChecks: true
+        SUAutomaticallyUpdate: true
     settings:
       base:
         PRODUCT_NAME: Monte Carlo Stock Simulator

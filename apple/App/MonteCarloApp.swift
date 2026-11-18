@@ -5,6 +5,10 @@ import MonteCarloKit
 struct MonteCarloApp: App {
     @State private var lab = Lab()
 
+    #if os(macOS)
+    init() { _ = Actualizador.control }              // arranca Sparkle con la app
+    #endif
+
     var body: some Scene {
         WindowGroup {
             ContentView(lab: lab)
@@ -14,6 +18,7 @@ struct MonteCarloApp: App {
         }
         #if os(macOS)
         .defaultSize(width: 1100, height: 780)
+        .commands { MenuActualizar() }
         #endif
     }
 }
