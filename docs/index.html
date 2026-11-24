@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Monte Carlo Stock Simulator</title>
 <meta name="description" content="10,000 possible futures for a stock, and an exam that checks whether the simulator keeps its promises.">
+<link rel="canonical" href="https://nachosanbenito.com/monte-carlo-simulator/">
 <meta property="og:title" content="Monte Carlo Stock Simulator: a simulator that grades itself">
 <meta property="og:description" content="GBM vs block bootstrap, backtested on 15 years of real dates. On the S&P 500 the textbook model's 50% band caught reality 73% of the time.">
 <meta property="og:image" content="https://nachosanbenito.com/monte-carlo-simulator/poster.jpg">
@@ -280,7 +281,7 @@ code{white-space:nowrap;font-size:.92em}
       <p class="chap">Two engines</p>
       <h2>Engine 2: real 21-day blocks</h2>
       <p>The block bootstrap assumes no shape at all. It cuts the last 5 years into real 21-day pieces and resamples them with replacement.</p>
-      <div class="formula b">future = block<sub>i</sub>, &nbsp;i ~ Uniform{ 1 … 1,260 − 21 }</div>
+      <div class="formula b">future = block<sub>i</sub>, &nbsp;i ~ Uniform{ 1 … 1,260 − 21 + 1 }</div>
       <p>Crashes come back, and in clusters, because a block keeps its neighbours. Median after a month: <b>$781.97</b>. Chance of a gain: <b>65.7%</b>.</p>
     </article>
     <article class="step" data-k="land" data-tint="blue">
@@ -318,7 +319,7 @@ code{white-space:nowrap;font-size:.92em}
   <div class="wrap">
     <div class="head">
       <h2 id="proof-h">Not cherry-picked: rerun on 16 stocks</h2>
-      <p>US, Spanish and UK stocks and ETFs, 1-month horizon, with the two tests a risk team asks for: Kupiec (the Basel VaR backtest) and Kolmogorov–Smirnov on the whole distribution.</p>
+      <p>US, Spanish and UK stocks and ETFs, 1-month horizon, with the two tests a risk team asks for: Kupiec (the standard test on VaR breaches) and Kolmogorov–Smirnov on the whole distribution.</p>
     </div>
     <div class="ks" role="img" aria-label="Kolmogorov–Smirnov shape test on 16 stocks: GBM fails 8, the bootstrap fails 0">
       <div><b class="gbm">GBM</b><span class="sq"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><small>fails the shape test on 8 of 16 stocks</small></div>
@@ -337,12 +338,12 @@ code{white-space:nowrap;font-size:.92em}
     <p class="note">GBM passes the VaR test on 15 of 16 and fails the shape test on half. Checking one quantile is not enough. The pooled figures overlap in time across stocks, so read them as a summary, not as 2,877 independent tests.</p>
     <div class="scroll-x">
       <table class="tbl">
-        <caption>Four stocks in detail, about 180 independent monthly tests each</caption>
+        <caption>Four stocks in detail, about 180 independent monthly tests each. Red: outside what luck allows</caption>
         <thead><tr><th>Ticker</th><th>History</th><th>GBM, 50% band</th><th>Bootstrap, 50% band</th><th>GBM, 90% band</th><th>Bootstrap, 90% band</th></tr></thead>
         <tbody>
           <tr><td data-l="Ticker">SPY</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band" class="miss">73%</td><td data-l="Bootstrap, 50% band">54%</td><td data-l="GBM, 90% band" class="miss">96%</td><td data-l="Bootstrap, 90% band">91%</td></tr>
-          <tr><td data-l="Ticker">AAPL</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">56%</td><td data-l="Bootstrap, 50% band">52%</td><td data-l="GBM, 90% band">95%</td><td data-l="Bootstrap, 90% band">91%</td></tr>
-          <tr><td data-l="Ticker">KO</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">60%</td><td data-l="Bootstrap, 50% band">46%</td><td data-l="GBM, 90% band">93%</td><td data-l="Bootstrap, 90% band">90%</td></tr>
+          <tr><td data-l="Ticker">AAPL</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">56%</td><td data-l="Bootstrap, 50% band">52%</td><td data-l="GBM, 90% band" class="miss">95%</td><td data-l="Bootstrap, 90% band">91%</td></tr>
+          <tr><td data-l="Ticker">KO</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band" class="miss">60%</td><td data-l="Bootstrap, 50% band">46%</td><td data-l="GBM, 90% band">93%</td><td data-l="Bootstrap, 90% band">90%</td></tr>
           <tr><td data-l="Ticker">ITX.MC</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">57%</td><td data-l="Bootstrap, 50% band">50%</td><td data-l="GBM, 90% band">93%</td><td data-l="Bootstrap, 90% band">89%</td></tr>
         </tbody>
       </table>
@@ -356,7 +357,7 @@ code{white-space:nowrap;font-size:.92em}
     <p class="lead">The checks pass: simulated GBM matches its closed-form lognormal within sampling error, the exam scores about 90% on data that really is a bell curve, and an independent review found no look-ahead. These are the limits it does not hide.</p>
     <div class="lims">
       <div><h3>It doesn't forecast direction</h3><p>μ is the 5-year mean return, which is mostly noise. The width of the cone is the information.</p></div>
-      <div><h3>Volatility is constant in each run</h3><p>After a crash it isn't. Modelling that is GARCH, a separate Quantum project.</p></div>
+      <div><h3>Volatility is constant in each run</h3><p>After a crash it isn't. Modelling that is GARCH, a Quantum project still to come.</p></div>
       <div><h3>Survivorship bias</h3><p>Only stocks that still trade can be examined.</p></div>
       <div><h3>Long horizons have little power</h3><p>15 years of test dates hold only about 14 non-overlapping years, so the demo says so at 1 year instead of drawing conclusions.</p></div>
     </div>
@@ -547,7 +548,7 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
     el('text', { x: L.r - 4, y: L.t + 20 + 20 * F, 'text-anchor': 'end', class: 'lab', style: 'fill:var(--bad)' }, g, '38 real days');
     el('text', { x: L.r - 4, y: L.t + 20 + 42 * F, 'text-anchor': 'end', class: 'lab m' }, g, 'normal: 0.3');
     el('text', { x: L.r, y: TT, 'text-anchor': 'end', class: 'tick' }, g, 'daily return in σ · log scale');
-    caps.tails = 'From the project: daily SPY returns 2006–2026 against the normal with the same σ. Red: beyond ±4σ. The end bars collect everything past ±6σ (the worst day was about −10σ).';
+    caps.tails = 'From the project: daily SPY returns 2006–2026 against the normal with the same σ. Red: beyond ±4σ. The end bars collect everything past ±6σ (the worst day was about −9.5σ).';
   }
 
   // the exam: 179 PIT dots per engine, dropped into 10 columns

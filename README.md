@@ -55,7 +55,7 @@ at 50% and ±4.4 points at 90% (95% binomial interval). Read against that:
 The four-stock table could be cherry-picked, so the exam was rerun on 16 US, Spanish and UK
 stocks and ETFs at a 1-month horizon, with the two tests a risk team would ask for:
 
-- **Kupiec test** on 95% VaR breaches. This is the Basel backtest; p < 0.05 means the model fails.
+- **Kupiec test** on 95% VaR breaches. This is the standard test on VaR breaches; p < 0.05 means the model fails.
 - **Kolmogorov–Smirnov** on the PITs. A calibrated model spreads them uniformly between 0 and 1.
 
 | | Inside 50% band | Inside 90% band | VaR 95% breaches | Kupiec fails | KS fails (p < 0.05) |
