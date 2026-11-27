@@ -10,6 +10,8 @@ day, but on whether it rains 70% of the times they say "70%". This project
 puts the simulator at ~180 past dates, calibrates it on the 5 years before each
 one, and counts how often reality landed inside each band.
 
+**Film (1 min):** the real Mac app and its exam, at [nachosanbenito.com/monte-carlo-simulator/#film](https://nachosanbenito.com/monte-carlo-simulator/#film).
+
 ## Two engines
 
 | Engine | What it assumes | How a day is drawn |

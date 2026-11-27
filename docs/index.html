@@ -70,7 +70,7 @@ h2{font-size:clamp(30px,3vw,42px);line-height:1.08}
 .panel p{max-width:46ch;margin:16px 0 0}
 .panel p.small{font-size:15px;color:var(--muted)}
 .film .stage{display:flex;align-items:center;justify-content:center;padding:clamp(16px,4vw,56px)}
-.film video{width:100%;height:auto;aspect-ratio:16/9;display:block;border-radius:var(--r);border:1px solid var(--line);background:#fff;box-shadow:0 18px 50px -24px rgba(42,39,56,.35)}
+.film video{width:100%;height:auto;aspect-ratio:16/9;display:block;border-radius:var(--r);border:1px solid var(--line);background:#000;box-shadow:0 18px 50px -24px rgba(42,39,56,.35)}
 .promo{position:relative;width:100%;margin:0}
 .play{position:absolute;left:0;top:0;width:100%;aspect-ratio:16/9;display:grid;place-items:center;padding:0;border:0;border-radius:var(--r);background:linear-gradient(rgb(22 21 29 / 0) 55%,rgb(22 21 29 / .55));color:#fff;font-family:inherit;cursor:pointer}
 .play i{display:grid;place-items:center;width:84px;height:58px;border-radius:16px;background:rgb(23 23 23 / .82);box-shadow:0 6px 24px rgb(0 0 0 / .35)}
@@ -220,7 +220,7 @@ code{white-space:nowrap;font-size:.92em}
     <p class="lead">10,000 simulated months for the S&amp;P 500, from two engines. Then an exam at 179 past dates: does the “50%” band really catch reality half the time? The textbook bell curve caught it <b>73%</b> of the time. Real 21-day blocks caught <b>54%</b>, within luck.</p>
     <div class="cta">
       <a class="btn solid" href="https://github.com/nachoie123/monte-carlo-simulator/releases/download/v1.2/MonteCarloStockSimulator-1.2.pkg" download>Download for Mac</a>
-      <a class="btn" href="#film">Watch the 1:41 film</a>
+      <a class="btn" href="#film">Watch the 1-minute film</a>
       <a class="btn" href="demo/">Try the live demo</a>
     </div>
     <p class="fine">Native app, 1.8 MB, notarized by Apple, macOS 26, updates itself. Also for iPhone via TestFlight, soon.</p>
@@ -240,9 +240,9 @@ code{white-space:nowrap;font-size:.92em}
 <section class="split film" id="film" aria-labelledby="film-h">
   <div class="panel">
     <p class="chap">Watch first</p>
-    <h2 id="film-h">The whole idea in a hand-drawn film</h2>
+    <h2 id="film-h">The whole idea in one minute</h2>
     <p>A Monte Carlo cone is a forecast you can grade, like a weather forecaster: not on one day, but on whether it rains 70% of the times they say “70%”.</p>
-    <p class="small">1:41, narrated in Spanish. Sound plays when you press play.</p>
+    <p class="small">1:00, narrated in English, with the real app recorded on a Mac. Sound plays when you press play.</p>
     <div class="links">
       <a class="btn solid" href="#method">See the method</a>
       <a class="btn" href="monte-carlo-explicacion.html">Illustrated walkthrough</a>
@@ -250,9 +250,9 @@ code{white-space:nowrap;font-size:.92em}
   </div>
   <div class="stage">
     <figure class="promo">
-      <video controls playsinline preload="metadata" poster="poster-film.jpg" width="1920" height="1080" src="monte-carlo-explained.mp4" aria-label="Monte Carlo explainer film, 1 minute 41, narrated in Spanish"></video>
-      <button class="play" type="button" aria-label="Play the 1 minute 41 film with sound"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg></i><span>Watch the film · sound on</span><small>1:41</small></button>
-      <figcaption>Narrated in Spanish · 1:41 · hand-drawn explainer</figcaption>
+      <video controls playsinline preload="metadata" poster="poster-film.jpg" width="1920" height="1080" src="monte-carlo-film.mp4" aria-label="Monte Carlo Stock Simulator film, 1 minute, narrated in English"></video>
+      <button class="play" type="button" aria-label="Play the 1-minute film with sound"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg></i><span>Watch the film · sound on</span><small>1:00</small></button>
+      <figcaption>Narrated in English · 1:00 · the real app and its exam</figcaption>
     </figure>
   </div>
 </section>
