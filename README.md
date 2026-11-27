@@ -35,7 +35,7 @@ For every origin date, one per month over ~15 years (20 years of data; the first
 
 | Ticker | History | Tests | GBM says 50% | Bootstrap says 50% | GBM says 90% | Bootstrap says 90% |
 |---|---|---|---|---|---|---|
-| SPY | 2006–2026 | 179 | 73% | 54% | 96% | 91% |
+| SPY | 2006–2026 (data to 2026-10-09) | 179 | 67.6% | 49.7% | 95.0% | 92.2% |
 | AAPL | 2006–2026 | 179 | 56% | 52% | 95% | 91% |
 | KO | 2006–2026 | 179 | 60% | 46% | 93% | 90% |
 | ITX.MC | 2006–2026 | 183 | 57% | 50% | 93% | 89% |
@@ -46,8 +46,8 @@ at 50% and ±4.4 points at 90% (95% binomial interval). Read against that:
 - **GBM gets the size of the risk right and its shape wrong.** It matches σ, but
   returns are fat-tailed (excess kurtosis 7–16 here): most days are calmer than
   the normal says and a few are far wilder. So its bands are too wide in the
-  middle. On SPY the "50%" band catches 73% of outcomes and the "90%" band catches
-  96%. Both are well outside the noise.
+  middle. On SPY (data to 2026-10-09) the "50%" band catches 67.6% of outcomes and the
+  "90%" band catches 95.0%. Both are outside the noise.
 - **The block bootstrap is calibrated** on all four stocks, within noise at every level.
 - **At a 1-year horizon the exam has little power.** ~15 years of test dates hold only ~14
   non-overlapping years, so the web UI says this outright instead of drawing conclusions.

@@ -7,7 +7,7 @@
 <meta name="description" content="10,000 possible futures for a stock, and an exam that checks whether the simulator keeps its promises.">
 <link rel="canonical" href="https://nachosanbenito.com/monte-carlo-simulator/">
 <meta property="og:title" content="Monte Carlo Stock Simulator: a simulator that grades itself">
-<meta property="og:description" content="GBM vs block bootstrap, backtested on 15 years of real dates. On the S&P 500 the textbook model's 50% band caught reality 73% of the time.">
+<meta property="og:description" content="GBM vs block bootstrap, backtested on 15 years of real dates. On the S&P 500 (data to Oct 9, 2026) the textbook model's 50% band caught reality 67.6% of the time.">
 <meta property="og:image" content="https://nachosanbenito.com/monte-carlo-simulator/poster.jpg">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#2a2738">
@@ -216,8 +216,8 @@ code{white-space:nowrap;font-size:.92em}
   </nav>
   <div class="hero-text">
     <p class="eyebrow">Monte Carlo stock simulator</p>
-    <h1>It promised <span class="n50">50%</span>.<br> It hit <span class="n73">73%</span>.</h1>
-    <p class="lead">10,000 simulated months for the S&amp;P 500, from two engines. Then an exam at 179 past dates: does the “50%” band really catch reality half the time? The textbook bell curve caught it <b>73%</b> of the time. Real 21-day blocks caught <b>54%</b>, within luck.</p>
+    <h1>It promised <span class="n50">50%</span>.<br> It hit <span class="n73">67.6%</span>.</h1>
+    <p class="lead">10,000 simulated months for the S&amp;P 500 (data to Oct 9, 2026), from two engines. Then an exam at 179 past dates: does the “50%” band really catch reality half the time? The textbook bell curve caught it <b>67.6%</b> of the time. Real 21-day blocks caught <b>49.7%</b>, within luck.</p>
     <div class="cta">
       <a class="btn solid" href="https://github.com/nachoie123/monte-carlo-simulator/releases/download/v1.2/MonteCarloStockSimulator-1.2.pkg" download>Download for Mac</a>
       <a class="btn" href="#film">Watch the 1-minute film</a>
@@ -226,13 +226,13 @@ code{white-space:nowrap;font-size:.92em}
     <p class="fine">Native app, 1.8 MB, notarized by Apple, macOS 26, updates itself. Also for iPhone via TestFlight, soon.</p>
   </div>
   <figure class="fan">
-    <canvas id="fan" role="img" aria-label="10,000 simulated one-month price paths for SPY fanning out from $769.64 and piling into a histogram, coloured by the band each one lands in"></canvas>
+    <canvas id="fan" role="img" aria-label="10,000 simulated one-month price paths for SPY fanning out from $778.57 and piling into a histogram, coloured by the band each one lands in"></canvas>
     <figcaption>
       <span class="count"><b id="cnt">0</b> / 10,000 paths</span>
       <span class="key"><i style="background:var(--in50)"></i>lands in the 50% band</span>
       <span class="key"><i style="background:var(--in90)"></i>in the 90% band</span>
       <span class="key"><i style="background:var(--out)"></i>outside</span>
-      <span>GBM with SPY's calibrated μ 13.8%, σ 17.1%, drawn live in your browser</span>
+      <span>GBM with SPY's calibrated μ 14.5%, σ 17.1%, drawn live in your browser</span>
     </figcaption>
   </figure>
 </header>
@@ -271,26 +271,26 @@ code{white-space:nowrap;font-size:.92em}
         <var>S</var><sub>T</sub> = <var>S</var><sub>0</sub> · exp( (<var>μ</var> − ½<var>σ</var><sup>2</sup>)<var>T</var> + <var>σ</var>√<var>T</var> · <var>Z</var> ), &nbsp;<var>Z</var> ~ N(0,1)
       </div>
       <div class="nums">
-        <div><b>13.8%</b><small>μ, a year</small></div>
+        <div><b>14.5%</b><small>μ, a year</small></div>
         <div><b>17.1%</b><small>σ, a year</small></div>
         <div><b>21</b><small>trading days</small></div>
       </div>
-      <p>10,000 paths. Median after a month: <b>$777.71</b>. Chance of a gain: <b>58.2%</b>.</p>
+      <p>10,000 paths. Median after a month: <b>$786.50</b>. Chance of a gain: <b>58.4%</b>.</p>
     </article>
     <article class="step" data-k="boot" data-tint="blue">
       <p class="chap">Two engines</p>
       <h2>Engine 2: real 21-day blocks</h2>
       <p>The block bootstrap assumes no shape at all. It cuts the last 5 years into real 21-day pieces and resamples them with replacement.</p>
       <div class="formula b">future = block<sub>i</sub>, &nbsp;i ~ Uniform{ 1 … 1,260 − 21 + 1 }</div>
-      <p>Crashes come back, and in clusters, because a block keeps its neighbours. Median after a month: <b>$781.97</b>. Chance of a gain: <b>65.7%</b>.</p>
+      <p>Crashes come back, and in clusters, because a block keeps its neighbours. Median after a month: <b>$791.25</b>. Chance of a gain: <b>66.4%</b>.</p>
     </article>
     <article class="step" data-k="land" data-tint="blue">
       <p class="chap">Two engines</p>
       <h2>Same size of risk</h2>
       <p>Drop all 10,000 endpoints into a histogram. Both engines agree on how bad a bad month is.</p>
       <div class="nums">
-        <div><b><span class="gbm">6.9%</span> · <span class="boot">7.2%</span></b><small>95% VaR, one month</small></div>
-        <div><b><span class="gbm">8.7%</span> · <span class="boot">8.9%</span></b><small>expected shortfall</small></div>
+        <div><b><span class="gbm">6.9%</span> · <span class="boot">6.9%</span></b><small>95% VaR, one month</small></div>
+        <div><b><span class="gbm">8.9%</span> · <span class="boot">9.0%</span></b><small>expected shortfall</small></div>
       </div>
       <p>A VaR backtest alone would call them equal. The difference is in the shape.</p>
     </article>
@@ -310,7 +310,7 @@ code{white-space:nowrap;font-size:.92em}
       <p class="chap">The exam</p>
       <h2>Graded: GBM fails, the bootstrap passes</h2>
       <p>Share of real outcomes inside the central band. With 179 tests, luck alone moves this by about ±7 points at 50% and ±4.4 at 90% (the grey zone).</p>
-      <p><b class="gbm">GBM</b>: 73% and 96%, both outside the noise. <b class="boot">Bootstrap</b>: 54% and 91%, inside it.</p>
+      <p><b class="gbm">GBM</b>: 67.6% and 95.0%, both outside the noise. <b class="boot">Bootstrap</b>: 49.7% and 92.2%, inside it.</p>
     </article>
   </div>
 </section>
@@ -341,7 +341,7 @@ code{white-space:nowrap;font-size:.92em}
         <caption>Four stocks in detail, about 180 independent monthly tests each. Red: outside what luck allows</caption>
         <thead><tr><th>Ticker</th><th>History</th><th>GBM, 50% band</th><th>Bootstrap, 50% band</th><th>GBM, 90% band</th><th>Bootstrap, 90% band</th></tr></thead>
         <tbody>
-          <tr><td data-l="Ticker">SPY</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band" class="miss">73%</td><td data-l="Bootstrap, 50% band">54%</td><td data-l="GBM, 90% band" class="miss">96%</td><td data-l="Bootstrap, 90% band">91%</td></tr>
+          <tr><td data-l="Ticker">SPY</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band" class="miss">68%</td><td data-l="Bootstrap, 50% band">50%</td><td data-l="GBM, 90% band" class="miss">95%</td><td data-l="Bootstrap, 90% band">92%</td></tr>
           <tr><td data-l="Ticker">AAPL</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">56%</td><td data-l="Bootstrap, 50% band">52%</td><td data-l="GBM, 90% band" class="miss">95%</td><td data-l="Bootstrap, 90% band">91%</td></tr>
           <tr><td data-l="Ticker">KO</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band" class="miss">60%</td><td data-l="Bootstrap, 50% band">46%</td><td data-l="GBM, 90% band">93%</td><td data-l="Bootstrap, 90% band">90%</td></tr>
           <tr><td data-l="Ticker">ITX.MC</td><td data-l="History">2006–2026</td><td data-l="GBM, 50% band">57%</td><td data-l="Bootstrap, 50% band">50%</td><td data-l="GBM, 90% band">93%</td><td data-l="Bootstrap, 90% band">89%</td></tr>
@@ -401,7 +401,7 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- hero: 10,000 GBM paths, drawn live ---------- */
 (() => {
-  const S0 = 769.64, MU = 0.138122, SIG = 0.171377, DAYS = 21, N = 10000;
+  const S0 = 778.57, MU = 0.144773, SIG = 0.171018, DAYS = 21, N = 10000;
   const dt = 1 / 252, drift = (MU - SIG * SIG / 2) * dt, vol = SIG * Math.sqrt(dt);
   // fixed seed, like the project
   let a = 20261002; const rnd = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -446,7 +446,7 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
     // guides: today + band brackets
     ctx.font = '13px Assistant, sans-serif'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f4f3f8'; ctx.beginPath(); ctx.arc(x0, Y(S0), 3.5, 0, 7); ctx.fill();
-    if (W >= 560) { ctx.textAlign = 'right'; ctx.fillStyle = '#b4b1c4'; ctx.fillText('$769.64', x0 - 10, Y(S0) - 8); ctx.fillText('Oct 2, 2026', x0 - 10, Y(S0) + 9); }
+    if (W >= 560) { ctx.textAlign = 'right'; ctx.fillStyle = '#b4b1c4'; ctx.fillText('$778.57', x0 - 10, Y(S0) - 8); ctx.fillText('Oct 9, 2026', x0 - 10, Y(S0) + 9); }
     ctx.textAlign = 'center'; ctx.fillStyle = '#8e8aa3'; ctx.fillText('one month, 21 trading days →', (x0 + x1) / 2, H - 8);
     const bw = hx1 - hx0, bh = Math.max(1.5, (H - 44) / NB - 1.2);
     for (let b = 0; b < NB; b++) {
@@ -512,7 +512,7 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
   };
   fan('gbm', 'gbm', 'var(--gbm)', 'GBM: 40 of 10,000 paths, 50% and 90% bands', '777.71');
   fan('boot', 'bootstrap', 'var(--boot)', 'Block bootstrap: 40 of 10,000 paths, same bands', '781.97');
-  caps.gbm = 'Real output of montecarlo.py for SPY, from $769.64 on Oct 2, 2026. Shaded: the 50% and 90% bands the exam will check.';
+  caps.gbm = 'Real output of montecarlo.py for SPY, from $778.57 on Oct 9, 2026. Shaded: the 50% and 90% bands the exam will check.';
   caps.boot = 'Same stock, same horizon. The bootstrap cone is a little narrower in the middle and leans up, because the last 5 years did.';
 
   // where they land: sideways histograms of 10,000 endpoints
@@ -577,13 +577,13 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
       el('text', { x: 20, y: y0 + 28 + 22 * F, class: 'tick' }, g, 'luck: ±' + noise + ' pts');
       [[gv, 'var(--gbm)', 'GBM', 0], [bv, 'var(--boot)', 'Bootstrap', dy2]].forEach(([v, c, n, dy]) => {
         el('rect', { x: x(0), y: y0 + dy, width: x(v) - x(0), height: bh, fill: c, rx: 2, class: 'grow', style: `transition-delay:${dy * 6}ms` }, g);
-        el('text', { x: x(v) + 8, y: y0 + dy + bh * .78, class: 'big', style: 'fill:' + c }, g, Math.round(v) + '%');
+        el('text', { x: x(v) + 8, y: y0 + dy + bh * .78, class: 'big', style: 'fill:' + c }, g, v.toFixed(1) + '%');
         el('text', { x: x(0) + 10, y: y0 + dy + bh * .66, class: 'lab', style: 'fill:#fff' }, g, n);
       });
       el('line', { x1: x(promise), x2: x(promise), y1: y0 - 14, y2: y0 + rh, stroke: '#16151d', 'stroke-width': 2 }, g);
       el('text', { x: x(promise), y: y0 - 16 - 6 * F, 'text-anchor': 'middle', class: 'lab' }, g, promise + '% promised');
     };
-    row(40 + 14 * F, 50, 73.18, 53.63, 7); row(40 + 14 * F + rh + 30 + 14 * F, 90, 95.53, 91.06, 4.4);
+    row(40 + 14 * F, 50, 67.60, 49.72, 7); row(40 + 14 * F + rh + 30 + 14 * F, 90, 94.97, 92.18, 4.4);
     el('line', { x1: x(0), x2: x(0), y1: 30, y2: L.b, class: 'ax' }, g);
     [0, 25, 50, 75, 100].forEach(v => el('text', { x: x(v), y: TY, 'text-anchor': 'middle', class: 'tick' }, g, v + '%'));
     caps.score = 'Share of 179 real outcomes that landed inside each band. Grey: the range luck alone produces (95% binomial interval).';
